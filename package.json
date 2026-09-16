@@ -1,0 +1,11 @@
+{
+  "name": "@xinix00/markdown",
+  "version": "1.0.0",
+  "description": "Tiny block-based markdown editor: one textarea per line, prefix decides the style. Zero dependencies, optional Alpine.js integration.",
+  "main": "markdown.js",
+  "style": "markdown.css",
+  "files": ["markdown.js", "markdown.css"],
+  "keywords": ["markdown", "editor", "alpinejs", "block-editor", "textarea"],
+  "repository": "github:xinix00/markdown",
+  "license": "MIT"
+}

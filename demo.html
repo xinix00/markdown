@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>markdown editor demo</title>
+<link rel="stylesheet" href="markdown.css">
+<script src="markdown.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 3rem auto; padding: 0 1rem; color: #111827; }
+  .dark { background: #0c0c1d; color: #fff; padding: 1rem; border-radius: .75rem; }
+  .dark .md-editor { --md-accent: #a78bfa; --md-fg: #fff; --md-muted: rgba(255,255,255,.4); --md-faint: rgba(255,255,255,.2);
+    --md-border: rgba(167,139,250,.25); --md-divider: rgba(255,255,255,.06); --md-soft: rgba(255,255,255,.03); --md-hover: rgba(255,255,255,.08); }
+  pre { background: #f3f4f6; padding: .75rem; border-radius: .5rem; font-size: .8rem; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h1>markdown</h1>
+
+<h2>Alpine.js</h2>
+<div x-data="{ md: '' }">
+  <div x-data="markdownEditor()">
+    <textarea name="body" x-model="md"># Hello world
+Type **bold**, then press Enter.
+- a list item
+- another one
+> a quote
+```
+code block
+```</textarea>
+  </div>
+  <pre x-text="md"></pre>
+</div>
+
+<h2>Vanilla, dark theme, Dutch labels</h2>
+<div class="dark">
+  <div id="vanilla"><textarea name="notes"></textarea></div>
+</div>
+<script>
+  MarkdownEditor.mount(document.getElementById('vanilla'), {
+    placeholder: 'Typ hier…',
+    labels: { bold: 'Vet', italic: 'Cursief', strike: 'Doorhalen', h1: 'Kop 1', h2: 'Kop 2', h3: 'Kop 3',
+              bullet: 'Opsomming', numbered: 'Genummerd', quote: 'Citaat', code: 'Code', paragraph: 'Paragraaf', text: 'tekst' },
+  });
+</script>
+</body>
+</html>
