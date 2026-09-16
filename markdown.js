@@ -1,4 +1,4 @@
-/*! @xinix00/markdown v1.5.1 | MIT | https://github.com/xinix00/markdown */
+/*! @xinix00/markdown v1.5.2 | MIT | https://github.com/xinix00/markdown */
 (function (global) {
     'use strict';
 
@@ -500,6 +500,12 @@
                         else if (mod && !e.altKey && k === 'i') { e.preventDefault(); this.wrap('*'); }
                         else if (mod && e.shiftKey && (k === 's' || k === 'x')) { e.preventDefault(); this.wrap('~~'); }
                         else if (e.key === '|' && !mod) { e.preventDefault(); this.insertColumn(i, c, input); }
+                        else if (e.key === 'Tab' && !e.shiftKey && c === cols - 1 && i === this.blocks.length - 1) {
+                            // Tab out of the very last cell with nothing below: create a line under the table
+                            e.preventDefault();
+                            this.blocks.push('');
+                            this.render(false); this.sync(); this.focus(i + 1, 'start');
+                        }
                         else if (e.key === 'Enter') { if (e.shiftKey) return; e.preventDefault(); this.tableEnter(i, rowEmpty); } // Shift+Enter = newline in the cell
                         else if (e.key === 'Backspace' && atStart && c === 0 && rowEmpty) { e.preventDefault(); this.removeTableRow(i); }
                         else if (e.key === 'Backspace' && atStart && c > 0 && input.value === '') {
@@ -518,23 +524,34 @@
                 }
             },
 
+            // Index of the first data row (after header + separator). A table always keeps
+            // its header and one data row; to remove a table, select its rows and press Backspace.
+            firstDataRow(i) {
+                const [first] = this.tableRange(i);
+                return isSepRow(this.blocks[first + 1] || '') ? first + 2 : first + 1;
+            },
+
             // Enter in a cell: new row below (after the header the "---" separator comes first);
-            // Enter on an empty last row ends the table.
+            // Enter on an empty last row ends the table, unless it is the only data row.
             tableEnter(i, rowEmpty) {
                 const [first, last] = this.tableRange(i);
-                if (rowEmpty && i === last && i !== first) {
+                if (rowEmpty && i === last && i > this.firstDataRow(i)) {
                     this.blocks[i] = '';
                     this.render(false); this.sync(); this.focus(i, 'end');
                     return;
                 }
                 const cols = Math.max(1, parseCells(this.blocks[i]).length);
                 const add = [];
-                if (i === first && !isSepRow(this.blocks[i + 1] || '')) add.push('| ' + Array(cols).fill('---').join(' | ') + ' |');
+                let at = i + 1;
+                if (i === first) {
+                    if (isSepRow(this.blocks[i + 1] || '')) at = i + 2; // never insert between header and separator
+                    else add.push('| ' + Array(cols).fill('---').join(' | ') + ' |');
+                }
                 add.push('| ' + Array(cols).fill('   ').join(' | ') + ' |');
-                this.blocks.splice(i + 1, 0, ...add);
+                this.blocks.splice(at, 0, ...add);
                 this.prettyTable(i);
                 this.render(false); this.sync();
-                this.focus(i + add.length, { cell: 0 });
+                this.focus(at + add.length - 1, { cell: 0 });
             },
 
             // "|" typed in a cell: split the cell there and give every row a new column after it
@@ -575,8 +592,9 @@
                 this.focus(i, { cell: c - 1, at: 'end' });
             },
 
-            // Backspace in an empty row removes it
+            // Backspace in an empty row removes it — never the header or the first data row
             removeTableRow(i) {
+                if (i <= this.firstDataRow(i)) return;
                 this.blocks.splice(i, 1);
                 if (parse(this.blocks[i - 1] || '').type === 'table') this.prettyTable(i - 1);
                 this.render(false); this.sync();
@@ -709,5 +727,5 @@
     });
 
     global.markdownEditor = component;
-    global.MarkdownEditor = { component, mount, parse, formatTable, labels: LABELS, version: '1.5.1' };
+    global.MarkdownEditor = { component, mount, parse, formatTable, labels: LABELS, version: '1.5.2' };
 })(window);
