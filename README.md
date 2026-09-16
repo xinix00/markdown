@@ -8,6 +8,7 @@ plain markdown in a normal `<textarea>`, so it drops into any form.
 - Works standalone or as an [Alpine.js](https://alpinejs.dev) component
 - Enter splits a block, Backspace at the start merges, lists continue automatically
 - Drag across blocks to select them, then Backspace/Delete
+- Bold/italic/strike wrap the selection, or drop `****` with the cursor in the middle
 - Themeable with CSS custom properties, all labels overridable
 
 ## Install
@@ -15,8 +16,8 @@ plain markdown in a normal `<textarea>`, so it drops into any form.
 Via jsDelivr:
 
 ```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/xinix00/markdown@1.0.0/markdown.min.css">
-<script src="https://cdn.jsdelivr.net/gh/xinix00/markdown@1.0.0/markdown.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/xinix00/markdown@1.0.1/markdown.min.css">
+<script src="https://cdn.jsdelivr.net/gh/xinix00/markdown@1.0.1/markdown.min.js"></script>
 ```
 
 Or copy `markdown.js` and `markdown.css` into your project.
@@ -47,11 +48,11 @@ The original textarea is hidden and kept in sync, so a regular form submit
 markdownEditor({
   toolbar: true,               // set false to hide the toolbar
   placeholder: 'Type here…',   // shown in the first empty block
-  labels: {                    // toolbar titles + the "text" inserted by bold/italic/strike
+  labels: {                    // toolbar titles
     bold: 'Vet', italic: 'Cursief', strike: 'Doorhalen',
     h1: 'Kop 1', h2: 'Kop 2', h3: 'Kop 3',
     bullet: 'Opsomming', numbered: 'Genummerd', quote: 'Citaat',
-    code: 'Code', paragraph: 'Paragraaf', text: 'tekst',
+    code: 'Code', paragraph: 'Paragraaf',
   },
 })
 ```
@@ -72,7 +73,7 @@ Override any of these on `.md-editor` or an ancestor:
   --md-hover: rgba(0,0,0,.08);
   --md-radius: .5rem;
   --md-font-size: .875rem;
-  --md-min-height: 4rem;
+  --md-min-height: calc(6 * 1.6 * .875rem + 1rem);  /* 6 lines */
   --md-max-height: 20rem;
 }
 ```

@@ -1,4 +1,4 @@
-/*! @xinix00/markdown v1.0.0 | MIT | https://github.com/xinix00/markdown */
+/*! @xinix00/markdown v1.0.1 | MIT | https://github.com/xinix00/markdown */
 (function (global) {
     'use strict';
 
@@ -53,7 +53,7 @@
         h1: 'Heading 1', h2: 'Heading 2', h3: 'Heading 3',
         bullet: 'Bullet list', numbered: 'Numbered list', quote: 'Quote',
         code: 'Code', paragraph: 'Paragraph',
-        placeholder: 'Type here…', text: 'text',
+        placeholder: 'Type here…',
     };
 
     function icon(name) {
@@ -274,10 +274,11 @@
             wrap(syntax) {
                 const ta = this.ta(this.active);
                 if (!ta) return;
-                const s = ta.selectionStart, e = ta.selectionEnd, sel = ta.value.slice(s, e) || labels.text;
+                const s = ta.selectionStart, e = ta.selectionEnd, sel = ta.value.slice(s, e);
                 ta.value = ta.value.slice(0, s) + syntax + sel + syntax + ta.value.slice(e);
                 this.blocks[this.active] = parse(this.blocks[this.active]).prefix + ta.value;
-                ta.selectionStart = ta.selectionEnd = s + syntax.length + sel.length + syntax.length;
+                // With a selection: cursor after the closing syntax. Without: cursor between the markers.
+                ta.selectionStart = ta.selectionEnd = sel ? s + syntax.length * 2 + sel.length : s + syntax.length;
                 ta.focus(); fit(ta); this.sync();
             },
 
@@ -351,5 +352,5 @@
     });
 
     global.markdownEditor = component;
-    global.MarkdownEditor = { component, mount, parse, labels: LABELS, version: '1.0.0' };
+    global.MarkdownEditor = { component, mount, parse, labels: LABELS, version: '1.0.1' };
 })(window);

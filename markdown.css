@@ -1,4 +1,4 @@
-/*! @xinix00/markdown v1.0.0 | MIT | https://github.com/xinix00/markdown */
+/*! @xinix00/markdown v1.0.1 | MIT | https://github.com/xinix00/markdown */
 
 /* Theme via custom properties — override any --md-* on .md-editor or an ancestor */
 .md-editor {
@@ -12,7 +12,7 @@
   --_hover:      var(--md-hover, rgba(0, 0, 0, 0.08));
   --_radius:     var(--md-radius, 0.5rem);
   --_font-size:  var(--md-font-size, 0.875rem);
-  --_min-height: var(--md-min-height, 4rem);
+  --_min-height: var(--md-min-height, calc(6 * 1.6 * var(--_font-size) + 1rem)); /* 6 lines */
   --_max-height: var(--md-max-height, 20rem);
 
   color: var(--_fg);
