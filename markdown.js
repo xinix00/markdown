@@ -1,4 +1,4 @@
-/*! @xinix00/markdown v1.3.1 | MIT | https://github.com/xinix00/markdown */
+/*! @xinix00/markdown v1.4.0 | MIT | https://github.com/xinix00/markdown */
 (function (global) {
     'use strict';
 
@@ -495,8 +495,13 @@
                         if (mod && !e.altKey && k === 'b') { e.preventDefault(); this.wrap('**'); }
                         else if (mod && !e.altKey && k === 'i') { e.preventDefault(); this.wrap('*'); }
                         else if (mod && e.shiftKey && (k === 's' || k === 'x')) { e.preventDefault(); this.wrap('~~'); }
+                        else if (e.key === '|' && !mod) { e.preventDefault(); this.insertColumn(i, c, input); }
                         else if (e.key === 'Enter') { e.preventDefault(); this.tableEnter(i, rowEmpty); }
                         else if (e.key === 'Backspace' && atStart && c === 0 && rowEmpty) { e.preventDefault(); this.removeTableRow(i); }
+                        else if (e.key === 'Backspace' && atStart && c > 0 && input.value === '') {
+                            e.preventDefault();
+                            if (this.columnEmpty(i, c)) this.removeColumn(i, c); else this.focus(i, { cell: c - 1, at: 'end' });
+                        }
                         else if (e.key === 'ArrowLeft' && atStart && c > 0) { e.preventDefault(); this.focus(i, { cell: c - 1, at: 'end' }); }
                         else if (e.key === 'ArrowRight' && atEnd && c < cols - 1) { e.preventDefault(); this.focus(i, { cell: c + 1, at: 'start' }); }
                         else if (e.shiftKey && e.key === 'ArrowUp' && i > 0) { e.preventDefault(); this.select(i, i - 1); }
@@ -525,6 +530,44 @@
                 this.prettyTable(i);
                 this.render(false); this.sync();
                 this.focus(i + add.length, { cell: 0 });
+            },
+
+            // "|" typed in a cell: split the cell there and give every row a new column after it
+            insertColumn(i, c, input) {
+                const head = input.value.slice(0, input.selectionStart), tail = input.value.slice(input.selectionEnd);
+                const [a, b] = this.tableRange(i);
+                for (let k = a; k <= b; k++) {
+                    const values = parseCells(this.blocks[k]);
+                    while (values.length <= c) values.push('');
+                    if (k === i) values[c] = head;
+                    values.splice(c + 1, 0, isSepRow(this.blocks[k]) ? '---' : (k === i ? tail : ''));
+                    this.blocks[k] = rowFrom(values);
+                }
+                this.prettyTable(i);
+                this.render(false); this.sync();
+                this.focus(i, { cell: c + 1, at: 'start' });
+            },
+
+            columnEmpty(i, c) {
+                const [a, b] = this.tableRange(i);
+                for (let k = a; k <= b; k++) {
+                    if (isSepRow(this.blocks[k])) continue;
+                    if ((parseCells(this.blocks[k])[c] || '') !== '') return false;
+                }
+                return true;
+            },
+
+            // Backspace in an empty cell whose whole column is empty removes that column
+            removeColumn(i, c) {
+                const [a, b] = this.tableRange(i);
+                for (let k = a; k <= b; k++) {
+                    const values = parseCells(this.blocks[k]);
+                    if (values.length > 1 && c < values.length) values.splice(c, 1);
+                    this.blocks[k] = rowFrom(values);
+                }
+                this.prettyTable(i);
+                this.render(false); this.sync();
+                this.focus(i, { cell: c - 1, at: 'end' });
             },
 
             // Backspace in an empty row removes it
@@ -661,5 +704,5 @@
     });
 
     global.markdownEditor = component;
-    global.MarkdownEditor = { component, mount, parse, formatTable, labels: LABELS, version: '1.3.1' };
+    global.MarkdownEditor = { component, mount, parse, formatTable, labels: LABELS, version: '1.4.0' };
 })(window);
