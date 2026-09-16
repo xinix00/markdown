@@ -1,4 +1,4 @@
-/*! @xinix00/markdown v1.3.0 | MIT | https://github.com/xinix00/markdown */
+/*! @xinix00/markdown v1.3.1 | MIT | https://github.com/xinix00/markdown */
 (function (global) {
     'use strict';
 
@@ -279,7 +279,12 @@
                 this.blocks.forEach((text, i) => {
                     const row = this.buildBlock(text, i);
                     if (parse(text).type === 'table') {
-                        if (!group) { group = document.createElement('div'); group.className = 'md-table-group'; c.appendChild(group); }
+                        if (!group) {
+                            group = document.createElement('div');
+                            group.className = 'md-table-group';
+                            group.style.setProperty('--md-cols', this.tableCols(i)); // read by grid-template-columns on the group
+                            c.appendChild(group);
+                        }
                         group.appendChild(row);
                     } else { group = null; c.appendChild(row); }
                 });
@@ -455,11 +460,16 @@
                 formatTable(this.blocks.slice(a, b + 1), null, true).rows.forEach((row, k) => { this.blocks[a + k] = row; });
             },
 
+            // Number of columns of the table around block i
+            tableCols(i) {
+                const [a, b] = this.tableRange(i);
+                return Math.max(1, ...this.blocks.slice(a, b + 1).map((r) => parseCells(r).length));
+            },
+
             // A table row is a grid of <input>s, one per cell. Tab moves between them natively.
             buildTableRow(row, i, text) {
-                const [a, b] = this.tableRange(i);
-                const cols = Math.max(1, ...this.blocks.slice(a, b + 1).map((r) => parseCells(r).length));
-                row.style.setProperty('--md-cols', cols);
+                const [a] = this.tableRange(i);
+                const cols = this.tableCols(i);
                 if (isSepRow(text)) { row.classList.add('md-table-sep'); return; }
                 if (i === a) row.classList.add('md-table-head');
                 const values = parseCells(text);
@@ -651,5 +661,5 @@
     });
 
     global.markdownEditor = component;
-    global.MarkdownEditor = { component, mount, parse, formatTable, labels: LABELS, version: '1.3.0' };
+    global.MarkdownEditor = { component, mount, parse, formatTable, labels: LABELS, version: '1.3.1' };
 })(window);

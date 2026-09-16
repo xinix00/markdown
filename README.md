@@ -19,8 +19,8 @@ plain markdown in a normal `<textarea>`, so it drops into any form.
 Via jsDelivr:
 
 ```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/xinix00/markdown@1.3.0/markdown.min.css">
-<script src="https://cdn.jsdelivr.net/gh/xinix00/markdown@1.3.0/markdown.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/xinix00/markdown@1.3.1/markdown.min.css">
+<script src="https://cdn.jsdelivr.net/gh/xinix00/markdown@1.3.1/markdown.min.js"></script>
 ```
 
 Or copy `markdown.js` and `markdown.css` into your project.
