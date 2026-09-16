@@ -1,4 +1,4 @@
-/*! @xinix00/markdown v1.0.1 | MIT | https://github.com/xinix00/markdown */
+/*! @xinix00/markdown v1.1.0 | MIT | https://github.com/xinix00/markdown */
 
 /* Theme via custom properties — override any --md-* on .md-editor or an ancestor */
 .md-editor {
@@ -78,6 +78,7 @@
 .md-quote .md-input { font-style: italic; color: var(--_muted); }
 .md-code .md-input  { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem; background: var(--_soft); border-radius: 0.25rem; padding: 0.25rem 0.5rem; }
 
-/* Block selection (drag across blocks, then Backspace/Delete) */
+/* Block selection (drag across blocks or Shift+arrows; then copy/cut/paste/delete/type) */
 .md-selected { background: color-mix(in srgb, var(--_accent) 15%, transparent); border-radius: 0.25rem; }
-.md-selected .md-input { pointer-events: none; }
+.md-selecting .md-blocks { user-select: none; }
+.md-selecting .md-input { pointer-events: none; }

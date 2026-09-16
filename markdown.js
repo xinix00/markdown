@@ -1,4 +1,4 @@
-/*! @xinix00/markdown v1.0.1 | MIT | https://github.com/xinix00/markdown */
+/*! @xinix00/markdown v1.1.0 | MIT | https://github.com/xinix00/markdown */
 (function (global) {
     'use strict';
 
@@ -108,7 +108,15 @@
                 if (!this.blocks.length) this.blocks = [''];
                 this.$nextTick(() => this.render(false));
 
+                // Mouse drag across blocks selects a range. Browsers capture the mouse for the
+                // textarea during a text-selection drag, so we track the pointer on the document.
+                this._onMouseMove = (e) => {
+                    if (!this.mouseDown || this.dragFrom === null) return;
+                    const to = this.rowAt(e.clientY);
+                    if (to !== this.dragFrom || this.selRange()) this.select(this.dragFrom, to);
+                };
                 this._onMouseUp = () => { this.mouseDown = false; this.dragFrom = null; };
+                document.addEventListener('mousemove', this._onMouseMove);
                 document.addEventListener('mouseup', this._onMouseUp);
 
                 this._onFocusOut = (e) => {
@@ -116,20 +124,59 @@
                 };
                 root.addEventListener('focusout', this._onFocusOut);
 
+                // Keyboard while a block range is selected (focus is on the root element)
                 this._onKeyDown = (e) => {
-                    if (this.selRange() && (e.key === 'Backspace' || e.key === 'Delete')) {
-                        e.preventDefault();
-                        this.deleteSelection();
+                    const range = this.selRange();
+                    if (!range || e.target !== root) return; // textarea keys are handled in buildBlock()
+                    const mod = e.metaKey || e.ctrlKey;
+                    const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+                    if (key === 'Escape') { const to = this.selTo; this.clearSelection(); this.focus(to, 'end'); }
+                    else if (key === 'Backspace' || key === 'Delete') { this.deleteSelection(); }
+                    else if (key === 'ArrowUp' || key === 'ArrowDown') {
+                        const dir = key === 'ArrowUp' ? -1 : 1;
+                        if (e.shiftKey) this.select(this.selFrom, this.selTo + dir);
+                        else { const to = this.selTo; this.clearSelection(); this.focus(to, dir < 0 ? 'start' : 'end'); }
                     }
-                    if (e.key === 'Escape') this.clearSelection();
+                    else if (mod && key === 'c') { this.copySelection(); }
+                    else if (mod && key === 'x') { this.copySelection(); this.deleteSelection(); }
+                    else if (mod && key === 'a') { this.selectAll(); }
+                    else if (mod) { return; } // let other shortcuts (paste, undo…) through
+                    else if (key === 'Enter') { this.deleteSelection(); }
+                    else if (e.key.length === 1 && !e.altKey) { this.replaceSelection(e.key); }
+                    else return;
+                    e.preventDefault();
                 };
                 root.addEventListener('keydown', this._onKeyDown);
+
+                // Clipboard events (Edit menu / context menu) while a block range is selected
+                this._onCopy = (e) => {
+                    const range = this.selRange();
+                    if (!range) return;
+                    e.preventDefault();
+                    e.clipboardData.setData('text/plain', this.selectedText());
+                    if (e.type === 'cut') this.deleteSelection();
+                };
+                root.addEventListener('copy', this._onCopy);
+                root.addEventListener('cut', this._onCopy);
+                this._onPaste = (e) => {
+                    const range = this.selRange();
+                    if (!range) return;
+                    e.preventDefault();
+                    this.replaceSelection(e.clipboardData.getData('text'));
+                };
+                root.addEventListener('paste', this._onPaste);
             },
 
             destroy() {
+                document.removeEventListener('mousemove', this._onMouseMove);
                 document.removeEventListener('mouseup', this._onMouseUp);
-                this.$el?.removeEventListener('focusout', this._onFocusOut);
-                this.$el?.removeEventListener('keydown', this._onKeyDown);
+                const root = this.$el;
+                if (!root) return;
+                root.removeEventListener('focusout', this._onFocusOut);
+                root.removeEventListener('keydown', this._onKeyDown);
+                root.removeEventListener('copy', this._onCopy);
+                root.removeEventListener('cut', this._onCopy);
+                root.removeEventListener('paste', this._onPaste);
             },
 
             buildToolbar() {
@@ -178,19 +225,12 @@
                     row.appendChild(d);
                 }
 
-                // Block selection: drag from one block to another selects the range
-                row.addEventListener('mousedown', () => {
+                // Start of a possible drag-selection (see _onMouseMove)
+                row.addEventListener('mousedown', (e) => {
+                    if (e.button !== 0) return;
+                    this.clearSelection();
                     this.mouseDown = true;
                     this.dragFrom = i;
-                });
-                row.addEventListener('mouseenter', () => {
-                    if (!this.mouseDown || this.dragFrom === null) return;
-                    if (i !== this.dragFrom) {
-                        this.selFrom = this.dragFrom;
-                        this.selTo = i;
-                        this.highlightSelection();
-                        this.$el.focus();
-                    }
                 });
 
                 const ta = document.createElement('textarea');
@@ -216,13 +256,25 @@
                 });
 
                 ta.addEventListener('keydown', (e) => {
+                    const mod = e.metaKey || e.ctrlKey;
+                    const last = this.blocks.length - 1;
+                    const atStart = !ta.selectionStart && !ta.selectionEnd;
+                    const firstNl = ta.value.indexOf('\n'), lastNl = ta.value.lastIndexOf('\n');
+                    const onFirstLine = firstNl === -1 || ta.selectionStart <= firstNl;
+                    const onLastLine = lastNl === -1 || ta.selectionEnd > lastNl;
+
                     if (e.key === 'Enter') {
                         if (e.shiftKey && !isHeading) return; // Shift+Enter = soft newline (not in headings)
                         e.preventDefault(); this.split(i, ta);
                     }
-                    if (e.key === 'Backspace' && !ta.selectionStart && !ta.selectionEnd && i > 0) { e.preventDefault(); this.merge(i); }
-                    if (e.key === 'ArrowUp' && !ta.selectionStart && i > 0) { e.preventDefault(); this.focus(i - 1, 'end'); }
-                    if (e.key === 'ArrowDown' && ta.selectionStart === ta.value.length && i < this.blocks.length - 1) { e.preventDefault(); this.focus(i + 1, 'start'); }
+                    else if (e.shiftKey && e.key === 'ArrowUp' && onFirstLine && i > 0) { e.preventDefault(); this.select(i, i - 1); }
+                    else if (e.shiftKey && e.key === 'ArrowDown' && onLastLine && i < last) { e.preventDefault(); this.select(i, i + 1); }
+                    else if (mod && e.key.toLowerCase() === 'a' && last > 0 && ta.selectionStart === 0 && ta.selectionEnd === ta.value.length) {
+                        e.preventDefault(); this.selectAll(); // second Cmd/Ctrl+A (or on an empty block) selects all blocks
+                    }
+                    else if (e.key === 'Backspace' && atStart && i > 0) { e.preventDefault(); this.merge(i); }
+                    else if (e.key === 'ArrowUp' && !ta.selectionStart && i > 0) { e.preventDefault(); this.focus(i - 1, 'end'); }
+                    else if (e.key === 'ArrowDown' && ta.selectionStart === ta.value.length && i < last) { e.preventDefault(); this.focus(i + 1, 'start'); }
                 });
 
                 ta.addEventListener('paste', (e) => {
@@ -298,33 +350,74 @@
             },
 
             // --- Block selection -------------------------------------------
+            // A range of whole blocks. While active, focus sits on the root element and
+            // the keyboard/clipboard handlers in init() operate on the raw markdown lines.
+
+            select(from, to) {
+                const last = this.blocks.length - 1;
+                from = Math.max(0, Math.min(from, last));
+                to = Math.max(0, Math.min(to, last));
+                if (from === to) { this.clearSelection(); this.focus(from, 'end'); return; }
+                this.selFrom = from; this.selTo = to;
+                this.$el.classList.add('md-selecting');
+                this.$el.focus(); // moves focus off the textarea; relatedTarget is inside root so focusout keeps the selection
+                window.getSelection?.().removeAllRanges();
+                const [a, b] = this.selRange();
+                [...this.container.children].forEach((row, i) => row.classList.toggle('md-selected', i >= a && i <= b));
+                this.container.children[to]?.scrollIntoView({ block: 'nearest' });
+            },
+
+            selectAll() { this.select(0, this.blocks.length - 1); },
 
             selRange() {
                 if (this.selFrom === null || this.selTo === null || this.selFrom === this.selTo) return null;
                 return [Math.min(this.selFrom, this.selTo), Math.max(this.selFrom, this.selTo)];
             },
 
-            highlightSelection() {
+            selectedText() {
                 const range = this.selRange();
-                if (!range) { this.clearSelection(); return; }
-                [...this.container.children].forEach((row, i) =>
-                    row.classList.toggle('md-selected', i >= range[0] && i <= range[1]));
-                document.activeElement?.blur();
+                return range ? this.blocks.slice(range[0], range[1] + 1).join('\n') : '';
             },
 
             clearSelection() {
                 this.selFrom = this.selTo = null;
+                this.$el?.classList.remove('md-selecting');
                 [...(this.container?.children || [])].forEach((r) => r.classList.remove('md-selected'));
             },
 
-            deleteSelection() {
+            rowAt(clientY) {
+                const rows = [...this.container.children];
+                for (let i = 0; i < rows.length; i++) {
+                    if (clientY <= rows[i].getBoundingClientRect().bottom) return i;
+                }
+                return rows.length - 1;
+            },
+
+            copySelection() {
+                const text = this.selectedText();
+                const fallback = () => {
+                    const ta = document.createElement('textarea');
+                    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+                    document.body.appendChild(ta); ta.select();
+                    try { document.execCommand('copy'); } catch (_) { /* ignore */ }
+                    ta.remove(); this.$el.focus();
+                };
+                if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).catch(fallback);
+                else fallback();
+            },
+
+            // Replace the selected blocks with the given text (one block per line)
+            replaceSelection(text) {
                 const range = this.selRange();
                 if (!range) return;
-                this.blocks.splice(range[0], range[1] - range[0] + 1, '');
-                if (!this.blocks.length) this.blocks = [''];
-                this.active = Math.min(range[0], this.blocks.length - 1);
-                this.clearSelection(); this.render(); this.sync();
+                const lines = text.split('\n');
+                this.blocks.splice(range[0], range[1] - range[0] + 1, ...lines);
+                this.active = range[0] + lines.length - 1;
+                this.clearSelection(); this.render(false); this.sync();
+                this.focus(this.active, 'end');
             },
+
+            deleteSelection() { this.replaceSelection(''); },
 
             // --- Helpers ---------------------------------------------------
 
@@ -352,5 +445,5 @@
     });
 
     global.markdownEditor = component;
-    global.MarkdownEditor = { component, mount, parse, labels: LABELS, version: '1.0.1' };
+    global.MarkdownEditor = { component, mount, parse, labels: LABELS, version: '1.1.0' };
 })(window);

@@ -7,7 +7,8 @@ plain markdown in a normal `<textarea>`, so it drops into any form.
 - Two plain files (JS + CSS), no build step, no dependencies
 - Works standalone or as an [Alpine.js](https://alpinejs.dev) component
 - Enter splits a block, Backspace at the start merges, lists continue automatically
-- Drag across blocks to select them, then Backspace/Delete
+- Select whole blocks by dragging across them or with Shift+↑/↓ (Cmd/Ctrl+A twice selects everything)
+- A block selection supports copy, cut, paste, Backspace/Delete and typing over it; copying gives the raw markdown
 - Bold/italic/strike wrap the selection, or drop `****` with the cursor in the middle
 - Themeable with CSS custom properties, all labels overridable
 
@@ -16,8 +17,8 @@ plain markdown in a normal `<textarea>`, so it drops into any form.
 Via jsDelivr:
 
 ```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/xinix00/markdown@1.0.1/markdown.min.css">
-<script src="https://cdn.jsdelivr.net/gh/xinix00/markdown@1.0.1/markdown.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/xinix00/markdown@1.1.0/markdown.min.css">
+<script src="https://cdn.jsdelivr.net/gh/xinix00/markdown@1.1.0/markdown.min.js"></script>
 ```
 
 Or copy `markdown.js` and `markdown.css` into your project.
