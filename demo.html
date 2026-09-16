@@ -21,7 +21,7 @@
 <h2>Alpine.js</h2>
 <div x-data="{ md: '' }">
   <div x-data="markdownEditor()">
-    <textarea name="body" x-model="md"># Hello world
+    <textarea name="body" x-init="md = $el.value" x-on:input="md = $event.target.value"># Hello world
 Type **bold**, then press Enter.
 - a list item
 - another one
