@@ -1,4 +1,4 @@
-/*! @xinix00/markdown v1.2.0 | MIT | https://github.com/xinix00/markdown */
+/*! @xinix00/markdown v1.3.0 | MIT | https://github.com/xinix00/markdown */
 (function (global) {
     'use strict';
 
@@ -6,10 +6,10 @@
     // Block parsing — every line is a block, the prefix decides the style
     // -----------------------------------------------------------------------
 
-    const RE = /^(#{1,3} |[-*] |\d+\. |> |```)/;
+    const RE = /^(#{1,3} |[-*] |\d+\. |> ?|```)/;
     const TYPES = {
         '# ': ['h1', '#'], '## ': ['h2', '##'], '### ': ['h3', '###'],
-        '- ': ['bullet', '•'], '* ': ['bullet', '•'], '> ': ['quote', null], '```': ['code', '</>'],
+        '- ': ['bullet', '•'], '* ': ['bullet', '•'], '> ': ['quote', null], '>': ['quote', null], '```': ['code', '</>'],
     };
 
     function parse(text) {
@@ -28,31 +28,66 @@
     // re-aligned (padded) when you leave the table so the pipes line up.
     // -----------------------------------------------------------------------
 
-    function cells(row) {
-        const parts = row.split('|').map((c) => c.trim());
-        if (parts[0] === '') parts.shift();
-        if (parts.length && parts[parts.length - 1] === '') parts.pop();
-        return parts;
-    }
-    const isSeparator = (row) => cells(row).length > 0 && cells(row).every((c) => /^:?-+:?$/.test(c));
+    const isSepCell = (c) => /^:?-+:?$/.test(c);
 
-    function alignTable(rows) {
-        const grid = rows.map(cells);
-        const cols = Math.max(1, ...grid.map((r) => r.length));
-        const width = Array.from({ length: cols }, (_, c) =>
-            Math.max(3, ...grid.map((r, ri) => (isSeparator(rows[ri]) ? 0 : (r[c] || '').length))));
-        return rows.map((row, ri) => {
-            const r = grid[ri], sep = isSeparator(row), out = [];
-            for (let c = 0; c < cols; c++) {
-                const cell = r[c] || '';
-                if (sep) {
-                    const left = cell.startsWith(':'), right = cell.endsWith(':');
-                    out.push((left ? ':' : '-') + '-'.repeat(Math.max(1, width[c] - 2)) + (right ? ':' : '-'));
-                } else out.push(cell + ' '.repeat(width[c] - cell.length));
-            }
-            return '| ' + out.join(' | ') + ' |';
+    // Format a group of table rows so all pipes line up. `active` = { row, caret }
+    // for the row being typed in: everything left of the caret is kept verbatim,
+    // spaces right of the caret count as padding. Returns the new rows and caret.
+    // With `fill`, short rows get empty cells so the table becomes rectangular.
+    function formatTable(rows, active, fill) {
+        const parsed = rows.map((row, ri) => {
+            const segs = row.slice(1).replace(/\\\|/g, '\u0000').split('|'); // \| = escaped pipe inside a cell
+            if (segs.length > 1 && segs[segs.length - 1].trim() === '') segs.pop();
+            let pos = 1, activeCell = -1, off = 0;
+            const contents = segs.map((seg, c) => {
+                seg = seg.replace(/\u0000/g, '\\|');
+                const start = pos;
+                pos += seg.length + 1;
+                if (active && ri === active.row && activeCell < 0 && active.caret >= start && active.caret <= start + seg.length) {
+                    const left = seg.slice(0, active.caret - start), right = seg.slice(active.caret - start).trimEnd();
+                    let content = left + right;
+                    off = left.length;
+                    if (content[0] === ' ') { content = content.slice(1); off = Math.max(0, off - 1); }
+                    activeCell = c;
+                    return content;
+                }
+                return seg.trim();
+            });
+            const sep = contents.length > 0 && contents.every(isSepCell);
+            return { contents, sep, activeCell, off };
         });
+        const cols = Math.max(1, ...parsed.map((r) => r.contents.length));
+        const width = Array.from({ length: cols }, (_, c) =>
+            Math.max(3, ...parsed.map((r) => (r.sep ? 0 : (r.contents[c] || '').length))));
+        let caret = null;
+        const out = parsed.map((r) => {
+            const n = fill ? cols : r.contents.length;
+            const cellsOut = [];
+            for (let c = 0; c < n; c++) {
+                const content = r.contents[c] || '';
+                if (r.sep) {
+                    const left = content.startsWith(':'), right = content.endsWith(':');
+                    cellsOut.push((left ? ':' : '-') + '-'.repeat(Math.max(1, width[c] - 2)) + (right ? ':' : '-'));
+                } else cellsOut.push(content + ' '.repeat(Math.max(0, width[c] - content.length)));
+                if (c === r.activeCell) {
+                    let at = 2;
+                    for (let k = 0; k < c; k++) at += width[k] + 3;
+                    caret = at + Math.min(r.off, width[c]);
+                }
+            }
+            return '| ' + cellsOut.join(' | ') + ' |';
+        });
+        return { rows: out, caret };
     }
+
+    // Cells of a raw row (\| inside a cell is an escaped pipe)
+    function parseCells(row) {
+        const segs = row.slice(1).replace(/\\\|/g, '\u0000').split('|');
+        if (segs.length > 1 && segs[segs.length - 1].trim() === '') segs.pop();
+        return segs.map((c) => c.trim().replace(/\u0000/g, '|'));
+    }
+    const isSepRow = (row) => { const c = parseCells(row); return c.length > 0 && c.every(isSepCell); };
+    const rowFrom = (values) => '| ' + values.map((v) => v.trim().replace(/\|/g, '\\|')).join(' | ') + ' |';
 
     // -----------------------------------------------------------------------
     // Toolbar — inline SVG icons (Lucide, ISC license)
@@ -105,7 +140,7 @@
     // Browsers without `field-sizing: content` need a JS auto-grow fallback
     const AUTO_GROW = !(global.CSS && CSS.supports && CSS.supports('field-sizing', 'content'));
     function fit(ta) {
-        if (!AUTO_GROW) return;
+        if (!AUTO_GROW || ta.tagName !== 'TEXTAREA') return;
         ta.style.height = 'auto';
         ta.style.height = ta.scrollHeight + 'px';
     }
@@ -155,7 +190,6 @@
                 this._onFocusOut = (e) => {
                     if (root.contains(e.relatedTarget)) return;
                     this.clearSelection();
-                    if (this.tidyTable(this.active)) this.render(false);
                 };
                 root.addEventListener('focusout', this._onFocusOut);
 
@@ -241,7 +275,14 @@
             render(autoFocus = true) {
                 const c = this.container;
                 c.innerHTML = '';
-                this.blocks.forEach((text, i) => c.appendChild(this.buildBlock(text, i)));
+                let group = null; // consecutive table rows share one horizontally scrolling wrapper
+                this.blocks.forEach((text, i) => {
+                    const row = this.buildBlock(text, i);
+                    if (parse(text).type === 'table') {
+                        if (!group) { group = document.createElement('div'); group.className = 'md-table-group'; c.appendChild(group); }
+                        group.appendChild(row);
+                    } else { group = null; c.appendChild(row); }
+                });
                 if (AUTO_GROW) c.querySelectorAll('textarea').forEach(fit);
                 if (autoFocus) this.focus(this.active);
             },
@@ -249,7 +290,6 @@
             buildBlock(text, i) {
                 const { prefix, content, type, dec } = parse(text);
                 const isHeading = type[0] === 'h';
-                const isTable = type === 'table';
 
                 const row = document.createElement('div');
                 row.className = 'md-block md-' + type;
@@ -269,26 +309,28 @@
                     this.dragFrom = i;
                 });
 
+                if (type === 'table') { this.buildTableRow(row, i, content); return row; }
+
                 const ta = document.createElement('textarea');
                 ta.className = 'md-input';
                 ta.value = content;
                 ta.rows = 1;
-                if (isTable) ta.wrap = 'off';
                 if (i === 0 && !content) ta.placeholder = labels.placeholder;
 
                 ta.addEventListener('focus', () => {
-                    this.active = i;
+                    this.active = i; this.cell = null;
                     if (!this.mouseDown) this.clearSelection();
                 });
                 ta.addEventListener('input', () => {
                     fit(ta);
                     this.blocks[i] = prefix + ta.value;
                     this.sync();
-                    // Auto-detect a freshly typed prefix ("- ") or a type change ("|")
+                    // Auto-detect a freshly typed prefix ("- ", ">") or a type change ("|" → table row)
                     const parsed = parse(prefix + ta.value);
                     if ((parsed.prefix !== prefix && parsed.prefix) || parsed.type !== type) {
-                        this.render();
-                        this.$nextTick(() => this.focus(i, 'end'));
+                        if (parsed.type === 'table') this.prettyTable(i);
+                        this.render(false);
+                        this.focus(i, 'end');
                     }
                 });
 
@@ -305,9 +347,8 @@
                     if (mod && !e.altKey && k === 'b') { e.preventDefault(); this.wrap('**'); }
                     else if (mod && !e.altKey && k === 'i') { e.preventDefault(); this.wrap('*'); }
                     else if (mod && e.shiftKey && (k === 's' || k === 'x')) { e.preventDefault(); this.wrap('~~'); }
-                    else if (e.key === 'Tab' && isTable) { e.preventDefault(); this.tableTab(i, ta, e.shiftKey ? -1 : 1); }
                     else if (e.key === 'Enter') {
-                        if (e.shiftKey && !isHeading && !isTable) return; // Shift+Enter = soft newline (not in headings/tables)
+                        if (e.shiftKey && !isHeading) return; // Shift+Enter = soft newline (not in headings)
                         e.preventDefault(); this.split(i, ta);
                     }
                     else if (e.shiftKey && e.key === 'ArrowUp' && onFirstLine && i > 0) { e.preventDefault(); this.select(i, i - 1); }
@@ -340,8 +381,7 @@
 
             split(i, ta) {
                 const before = ta.value.slice(0, ta.selectionStart), after = ta.value.slice(ta.selectionStart);
-                const { prefix, type } = parse(this.blocks[i]);
-                if (type === 'table') { this.tableEnter(i, ta); return; }
+                const { prefix } = parse(this.blocks[i]);
                 const isBullet = prefix === '- ' || prefix === '* ';
                 const isList = isBullet || /^\d+\. /.test(prefix);
 
@@ -384,7 +424,10 @@
                     s += n; e = s + sel.length;
                 }
                 ta.setSelectionRange(s, e);
-                this.blocks[this.active] = parse(this.blocks[this.active]).prefix + ta.value;
+                if (ta.classList.contains('md-cell')) {
+                    this.blocks[this.active] = rowFrom([...ta.closest('.md-block').querySelectorAll('.md-cell')].map((el) => el.value));
+                    this.prettyTable(this.active);
+                } else this.blocks[this.active] = parse(this.blocks[this.active]).prefix + ta.value;
                 ta.focus(); fit(ta); this.sync();
             },
 
@@ -396,7 +439,7 @@
                 const replace = this.blocks[i].trim() === '';
                 this.blocks.splice(replace ? i : i + 1, replace ? 1 : 0, ...rows);
                 this.render(false); this.sync();
-                this.focus(replace ? i : i + 1, 2);
+                this.focus(replace ? i : i + 1, { cell: 0 });
             },
 
             tableRange(i) {
@@ -406,68 +449,109 @@
                 return [a, b];
             },
 
-            // Re-align the table around block i; returns true when something changed
-            tidyTable(i) {
-                if (parse(this.blocks[i] || '').type !== 'table') return false;
+            // Keep the raw markdown of the table around block i aligned and rectangular
+            prettyTable(i) {
                 const [a, b] = this.tableRange(i);
-                const aligned = alignTable(this.blocks.slice(a, b + 1));
-                let changed = false;
-                aligned.forEach((row, k) => { if (this.blocks[a + k] !== row) { this.blocks[a + k] = row; changed = true; } });
-                if (changed) this.sync();
-                return changed;
+                formatTable(this.blocks.slice(a, b + 1), null, true).rows.forEach((row, k) => { this.blocks[a + k] = row; });
             },
 
-            tableEnter(i) {
-                const row = this.blocks[i], cols = Math.max(1, cells(row).length);
-                if (cells(row).every((c) => c === '')) { // Enter on an empty row ends the table
+            // A table row is a grid of <input>s, one per cell. Tab moves between them natively.
+            buildTableRow(row, i, text) {
+                const [a, b] = this.tableRange(i);
+                const cols = Math.max(1, ...this.blocks.slice(a, b + 1).map((r) => parseCells(r).length));
+                row.style.setProperty('--md-cols', cols);
+                if (isSepRow(text)) { row.classList.add('md-table-sep'); return; }
+                if (i === a) row.classList.add('md-table-head');
+                const values = parseCells(text);
+                for (let c = 0; c < cols; c++) {
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.className = 'md-input md-cell';
+                    input.value = values[c] || '';
+                    input.size = Math.max(3, input.value.length + 1);
+                    input.autocomplete = 'off';
+                    input.addEventListener('focus', () => { this.active = i; this.cell = c; if (!this.mouseDown) this.clearSelection(); });
+                    input.addEventListener('input', () => {
+                        input.size = Math.max(3, input.value.length + 1);
+                        this.blocks[i] = rowFrom([...row.querySelectorAll('.md-cell')].map((el) => el.value));
+                        this.prettyTable(i);
+                        this.sync();
+                    });
+                    input.addEventListener('keydown', (e) => {
+                        const mod = e.metaKey || e.ctrlKey, k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+                        const atStart = input.selectionStart === 0 && input.selectionEnd === 0;
+                        const atEnd = input.selectionStart === input.value.length && input.selectionEnd === input.value.length;
+                        const rowEmpty = [...row.querySelectorAll('.md-cell')].every((el) => el.value === '');
+                        if (mod && !e.altKey && k === 'b') { e.preventDefault(); this.wrap('**'); }
+                        else if (mod && !e.altKey && k === 'i') { e.preventDefault(); this.wrap('*'); }
+                        else if (mod && e.shiftKey && (k === 's' || k === 'x')) { e.preventDefault(); this.wrap('~~'); }
+                        else if (e.key === 'Enter') { e.preventDefault(); this.tableEnter(i, rowEmpty); }
+                        else if (e.key === 'Backspace' && atStart && c === 0 && rowEmpty) { e.preventDefault(); this.removeTableRow(i); }
+                        else if (e.key === 'ArrowLeft' && atStart && c > 0) { e.preventDefault(); this.focus(i, { cell: c - 1, at: 'end' }); }
+                        else if (e.key === 'ArrowRight' && atEnd && c < cols - 1) { e.preventDefault(); this.focus(i, { cell: c + 1, at: 'start' }); }
+                        else if (e.shiftKey && e.key === 'ArrowUp' && i > 0) { e.preventDefault(); this.select(i, i - 1); }
+                        else if (e.shiftKey && e.key === 'ArrowDown' && i < this.blocks.length - 1) { e.preventDefault(); this.select(i, i + 1); }
+                        else if (e.key === 'ArrowUp' && i > 0) { e.preventDefault(); this.focus(i - 1, { cell: c, at: 'end' }); }
+                        else if (e.key === 'ArrowDown' && i < this.blocks.length - 1) { e.preventDefault(); this.focus(i + 1, { cell: c, at: 'start' }); }
+                    });
+                    row.appendChild(input);
+                }
+            },
+
+            // Enter in a cell: new row below (after the header the "---" separator comes first);
+            // Enter on an empty last row ends the table.
+            tableEnter(i, rowEmpty) {
+                const [first, last] = this.tableRange(i);
+                if (rowEmpty && i === last && i !== first) {
                     this.blocks[i] = '';
-                    this.tidyTable(i - 1);
                     this.render(false); this.sync(); this.focus(i, 'end');
                     return;
                 }
+                const cols = Math.max(1, parseCells(this.blocks[i]).length);
                 const add = [];
-                const [first] = this.tableRange(i);
-                if (i === first && !isSeparator(this.blocks[i + 1] || '')) add.push('| ' + Array(cols).fill('---').join(' | ') + ' |');
+                if (i === first && !isSepRow(this.blocks[i + 1] || '')) add.push('| ' + Array(cols).fill('---').join(' | ') + ' |');
                 add.push('| ' + Array(cols).fill('   ').join(' | ') + ' |');
                 this.blocks.splice(i + 1, 0, ...add);
-                this.tidyTable(i);
+                this.prettyTable(i);
                 this.render(false); this.sync();
-                this.focus(i + add.length, 2);
+                this.focus(i + add.length, { cell: 0 });
             },
 
-            // Tab / Shift+Tab: next / previous cell, crossing into adjacent table rows
-            tableTab(i, ta, dir) {
-                const v = ta.value, pos = ta.selectionStart;
-                const pipes = [];
-                for (let k = 0; k < v.length; k++) if (v[k] === '|') pipes.push(k);
-                if (dir > 0) {
-                    const p = pipes.find((k) => k > pos && v.indexOf('|', k + 1) !== -1);
-                    if (p !== undefined) { ta.setSelectionRange(p + 2, p + 2); return; }
-                    if (parse(this.blocks[i + 1] || '').type === 'table') this.focus(i + 1, 2);
-                } else {
-                    const before = pipes.filter((k) => k < pos - 2);
-                    const p = before[before.length - 1];
-                    if (p !== undefined) { ta.setSelectionRange(p + 2, p + 2); return; }
-                    if (parse(this.blocks[i - 1] || '').type === 'table') this.focus(i - 1, 'end');
-                }
+            // Backspace in an empty row removes it
+            removeTableRow(i) {
+                this.blocks.splice(i, 1);
+                if (parse(this.blocks[i - 1] || '').type === 'table') this.prettyTable(i - 1);
+                this.render(false); this.sync();
+                this.focus(i - 1, { cell: 0, at: 'end' });
             },
 
-            setPrefix(p) {
-                this.blocks[this.active] = p + parse(this.blocks[this.active]).content;
-                this.render(); this.$nextTick(() => this.focus(this.active, 'end')); this.sync();
-            },
-
-            // pos = 'start' | 'end' | raw caret offset
+            // pos = 'start' | 'end' | caret offset | { cell, at } for table rows
             focus(i, pos) {
                 i = Math.max(0, Math.min(i, this.blocks.length - 1));
-                if (i !== this.active && this.tidyTable(this.active)) this.render(false);
+                const row = this.rows()[i];
+                if (!row) return;
+                if (row.classList.contains('md-table-sep')) { // separator rows are not editable: step over them
+                    const down = pos === 'start' || (pos && pos.at === 'start');
+                    const next = down ? i + 1 : i - 1;
+                    if (next >= 0 && next < this.blocks.length) this.focus(next, pos);
+                    return;
+                }
                 this.active = i;
-                const ta = this.ta(this.active);
-                if (!ta) return;
-                ta.focus();
-                const at = pos === 'end' ? ta.value.length : pos === 'start' ? 0 : pos;
-                if (typeof at === 'number') ta.setSelectionRange(at, at);
-                this.$nextTick(() => ta.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
+                const cellsEls = row.querySelectorAll('.md-cell');
+                let el;
+                if (cellsEls.length) {
+                    const want = pos && typeof pos === 'object' ? pos.cell : (pos === 'end' ? cellsEls.length - 1 : 0);
+                    el = cellsEls[Math.max(0, Math.min(want ?? 0, cellsEls.length - 1))];
+                    pos = pos && typeof pos === 'object' ? (pos.at || 'end') : pos;
+                } else {
+                    el = row.querySelector('textarea');
+                    if (pos && typeof pos === 'object') pos = pos.at || 'end';
+                }
+                if (!el) return;
+                el.focus();
+                const at = pos === 'end' ? el.value.length : pos === 'start' ? 0 : pos;
+                if (typeof at === 'number') el.setSelectionRange(at, at);
+                this.$nextTick(() => el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
             },
 
             // --- Block selection -------------------------------------------
@@ -484,8 +568,8 @@
                 this.$el.focus(); // moves focus off the textarea; relatedTarget is inside root so focusout keeps the selection
                 window.getSelection?.().removeAllRanges();
                 const [a, b] = this.selRange();
-                [...this.container.children].forEach((row, i) => row.classList.toggle('md-selected', i >= a && i <= b));
-                this.container.children[to]?.scrollIntoView({ block: 'nearest' });
+                this.rows().forEach((row, i) => row.classList.toggle('md-selected', i >= a && i <= b));
+                this.rows()[to]?.scrollIntoView({ block: 'nearest' });
             },
 
             selectAll() { this.select(0, this.blocks.length - 1); },
@@ -503,11 +587,11 @@
             clearSelection() {
                 this.selFrom = this.selTo = null;
                 this.$el?.classList.remove('md-selecting');
-                [...(this.container?.children || [])].forEach((r) => r.classList.remove('md-selected'));
+                if (this.container) this.rows().forEach((r) => r.classList.remove('md-selected'));
             },
 
             rowAt(clientY) {
-                const rows = [...this.container.children];
+                const rows = this.rows();
                 for (let i = 0; i < rows.length; i++) {
                     if (clientY <= rows[i].getBoundingClientRect().bottom) return i;
                 }
@@ -542,7 +626,8 @@
 
             // --- Helpers ---------------------------------------------------
 
-            ta(i) { return this.container.children[i]?.querySelector('textarea'); },
+            rows() { return [...this.container.querySelectorAll('.md-block')]; },
+            ta(i) { const r = this.rows()[i]; return r ? (r.querySelector('.md-input:focus') || r.querySelector('.md-input')) : undefined; },
             sync() {
                 this.source.value = this.blocks.join('\n');
                 this.source.dispatchEvent(new Event('input', { bubbles: true }));
@@ -566,5 +651,5 @@
     });
 
     global.markdownEditor = component;
-    global.MarkdownEditor = { component, mount, parse, alignTable, labels: LABELS, version: '1.2.0' };
+    global.MarkdownEditor = { component, mount, parse, formatTable, labels: LABELS, version: '1.3.0' };
 })(window);
