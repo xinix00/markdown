@@ -1,12 +1,14 @@
 # markdown
 
 A tiny block-based markdown editor. Every line is its own block; the prefix
-you type decides how it looks (`# `, `- ` or `* `, `1. `, `> `, ` ``` `). The result is
+you type decides how it looks (`# `, `- ` or `* `, `1. `, `> `, ` ``` `, `|`). The result is
 plain markdown in a normal `<textarea>`, so it drops into any form.
 
 - Two plain files (JS + CSS), no build step, no dependencies
 - Works standalone or as an [Alpine.js](https://alpinejs.dev) component
 - Enter splits a block, Backspace at the start merges, lists continue automatically
+- Cmd/Ctrl+B, I and Shift+S wrap the selection (or toggle the markers off again)
+- Tables: a line starting with `|` is a table row. Tab/Shift+Tab move between cells, Enter adds a row (and the `---` separator after the header), Enter on an empty row ends the table, and the pipes are re-aligned when you leave the table
 - Select whole blocks by dragging across them or with Shift+↑/↓ (Cmd/Ctrl+A twice selects everything)
 - A block selection supports copy, cut, paste, Backspace/Delete and typing over it; copying gives the raw markdown
 - Bold/italic/strike wrap the selection, or drop `****` with the cursor in the middle
@@ -17,8 +19,8 @@ plain markdown in a normal `<textarea>`, so it drops into any form.
 Via jsDelivr:
 
 ```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/xinix00/markdown@1.1.1/markdown.min.css">
-<script src="https://cdn.jsdelivr.net/gh/xinix00/markdown@1.1.1/markdown.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/xinix00/markdown@1.2.0/markdown.min.css">
+<script src="https://cdn.jsdelivr.net/gh/xinix00/markdown@1.2.0/markdown.min.js"></script>
 ```
 
 Or copy `markdown.js` and `markdown.css` into your project.
@@ -53,7 +55,7 @@ markdownEditor({
     bold: 'Vet', italic: 'Cursief', strike: 'Doorhalen',
     h1: 'Kop 1', h2: 'Kop 2', h3: 'Kop 3',
     bullet: 'Opsomming', numbered: 'Genummerd', quote: 'Citaat',
-    code: 'Code', paragraph: 'Paragraaf',
+    code: 'Code', table: 'Tabel', paragraph: 'Paragraaf',
   },
 })
 ```
