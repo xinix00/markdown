@@ -1,4 +1,4 @@
-/*! @xinix00/markdown v1.5.0 | MIT | https://github.com/xinix00/markdown */
+/*! @xinix00/markdown v1.5.1 | MIT | https://github.com/xinix00/markdown */
 (function (global) {
     'use strict';
 
@@ -709,5 +709,5 @@
     });
 
     global.markdownEditor = component;
-    global.MarkdownEditor = { component, mount, parse, formatTable, labels: LABELS, version: '1.5.0' };
+    global.MarkdownEditor = { component, mount, parse, formatTable, labels: LABELS, version: '1.5.1' };
 })(window);
