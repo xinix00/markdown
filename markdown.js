@@ -1,4 +1,4 @@
-/*! @xinix00/markdown v1.4.0 | MIT | https://github.com/xinix00/markdown */
+/*! @xinix00/markdown v1.5.0 | MIT | https://github.com/xinix00/markdown */
 (function (global) {
     'use strict';
 
@@ -84,10 +84,11 @@
     function parseCells(row) {
         const segs = row.slice(1).replace(/\\\|/g, '\u0000').split('|');
         if (segs.length > 1 && segs[segs.length - 1].trim() === '') segs.pop();
-        return segs.map((c) => c.trim().replace(/\u0000/g, '|'));
+        return segs.map((c) => c.trim().replace(/\u0000/g, '|').replace(/<br\s*\/?>/gi, '\n'));
     }
     const isSepRow = (row) => { const c = parseCells(row); return c.length > 0 && c.every(isSepCell); };
-    const rowFrom = (values) => '| ' + values.map((v) => v.trim().replace(/\|/g, '\\|')).join(' | ') + ' |';
+    // Cells → raw row: pipes escaped, line breaks inside a cell become <br> (GFM convention)
+    const rowFrom = (values) => '| ' + values.map((v) => v.trim().replace(/\|/g, '\\|').replace(/\n/g, '<br>')).join(' | ') + ' |';
 
     // -----------------------------------------------------------------------
     // Toolbar — inline SVG icons (Lucide, ISC license)
@@ -474,15 +475,15 @@
                 if (i === a) row.classList.add('md-table-head');
                 const values = parseCells(text);
                 for (let c = 0; c < cols; c++) {
-                    const input = document.createElement('input');
-                    input.type = 'text';
+                    const input = document.createElement('textarea'); // same element as every other block: multi-line, auto-growing
                     input.className = 'md-input md-cell';
+                    input.rows = 1;
                     input.value = values[c] || '';
-                    input.size = Math.max(3, input.value.length + 1);
-                    input.autocomplete = 'off';
+                    const sizeCols = () => { input.cols = Math.max(3, ...input.value.split('\n').map((l) => l.length + 1)); };
+                    sizeCols();
                     input.addEventListener('focus', () => { this.active = i; this.cell = c; if (!this.mouseDown) this.clearSelection(); });
                     input.addEventListener('input', () => {
-                        input.size = Math.max(3, input.value.length + 1);
+                        sizeCols(); fit(input);
                         this.blocks[i] = rowFrom([...row.querySelectorAll('.md-cell')].map((el) => el.value));
                         this.prettyTable(i);
                         this.sync();
@@ -492,11 +493,14 @@
                         const atStart = input.selectionStart === 0 && input.selectionEnd === 0;
                         const atEnd = input.selectionStart === input.value.length && input.selectionEnd === input.value.length;
                         const rowEmpty = [...row.querySelectorAll('.md-cell')].every((el) => el.value === '');
+                        const firstNl = input.value.indexOf('\n'), lastNl = input.value.lastIndexOf('\n');
+                        const onFirstLine = firstNl === -1 || input.selectionStart <= firstNl;
+                        const onLastLine = lastNl === -1 || input.selectionEnd > lastNl;
                         if (mod && !e.altKey && k === 'b') { e.preventDefault(); this.wrap('**'); }
                         else if (mod && !e.altKey && k === 'i') { e.preventDefault(); this.wrap('*'); }
                         else if (mod && e.shiftKey && (k === 's' || k === 'x')) { e.preventDefault(); this.wrap('~~'); }
                         else if (e.key === '|' && !mod) { e.preventDefault(); this.insertColumn(i, c, input); }
-                        else if (e.key === 'Enter') { e.preventDefault(); this.tableEnter(i, rowEmpty); }
+                        else if (e.key === 'Enter') { if (e.shiftKey) return; e.preventDefault(); this.tableEnter(i, rowEmpty); } // Shift+Enter = newline in the cell
                         else if (e.key === 'Backspace' && atStart && c === 0 && rowEmpty) { e.preventDefault(); this.removeTableRow(i); }
                         else if (e.key === 'Backspace' && atStart && c > 0 && input.value === '') {
                             e.preventDefault();
@@ -504,12 +508,13 @@
                         }
                         else if (e.key === 'ArrowLeft' && atStart && c > 0) { e.preventDefault(); this.focus(i, { cell: c - 1, at: 'end' }); }
                         else if (e.key === 'ArrowRight' && atEnd && c < cols - 1) { e.preventDefault(); this.focus(i, { cell: c + 1, at: 'start' }); }
-                        else if (e.shiftKey && e.key === 'ArrowUp' && i > 0) { e.preventDefault(); this.select(i, i - 1); }
-                        else if (e.shiftKey && e.key === 'ArrowDown' && i < this.blocks.length - 1) { e.preventDefault(); this.select(i, i + 1); }
-                        else if (e.key === 'ArrowUp' && i > 0) { e.preventDefault(); this.focus(i - 1, { cell: c, at: 'end' }); }
-                        else if (e.key === 'ArrowDown' && i < this.blocks.length - 1) { e.preventDefault(); this.focus(i + 1, { cell: c, at: 'start' }); }
+                        else if (e.shiftKey && e.key === 'ArrowUp' && onFirstLine && i > 0) { e.preventDefault(); this.select(i, i - 1); }
+                        else if (e.shiftKey && e.key === 'ArrowDown' && onLastLine && i < this.blocks.length - 1) { e.preventDefault(); this.select(i, i + 1); }
+                        else if (e.key === 'ArrowUp' && onFirstLine && i > 0) { e.preventDefault(); this.focus(i - 1, { cell: c, at: 'end' }); }
+                        else if (e.key === 'ArrowDown' && onLastLine && i < this.blocks.length - 1) { e.preventDefault(); this.focus(i + 1, { cell: c, at: 'start' }); }
                     });
                     row.appendChild(input);
+                    fit(input);
                 }
             },
 
@@ -704,5 +709,5 @@
     });
 
     global.markdownEditor = component;
-    global.MarkdownEditor = { component, mount, parse, formatTable, labels: LABELS, version: '1.4.0' };
+    global.MarkdownEditor = { component, mount, parse, formatTable, labels: LABELS, version: '1.5.0' };
 })(window);

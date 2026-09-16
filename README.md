@@ -8,7 +8,7 @@ plain markdown in a normal `<textarea>`, so it drops into any form.
 - Works standalone or as an [Alpine.js](https://alpinejs.dev) component
 - Enter splits a block, Backspace at the start merges, lists continue automatically
 - Cmd/Ctrl+B, I and Shift+S wrap the selection (or toggle the markers off again)
-- Tables: a line starting with `|` is a table row, shown as a grid of cell inputs. Tab moves to the next cell (natively), arrows move between cells and rows, Enter adds a row (and the `---` separator after the header), Enter on an empty last row ends the table. Type `|` in a cell to add a column right there; Backspace in an empty cell removes the column when it is empty everywhere. The raw markdown stays aligned automatically.
+- Tables: a line starting with `|` is a table row, shown as a grid of cells that behave like every other block: multi-line (Shift+Enter), auto-growing. Tab moves to the next cell (natively), arrows move between cells and rows, Enter adds a row (and the `---` separator after the header), Enter on an empty last row ends the table. Type `|` in a cell to add a column right there; Backspace in an empty cell removes the column when it is empty everywhere. The raw markdown stays aligned automatically; line breaks inside a cell are stored as `<br>`.
 - Select whole blocks by dragging across them or with Shift+↑/↓ (Cmd/Ctrl+A twice selects everything)
 - A block selection supports copy, cut, paste, Backspace/Delete and typing over it; copying gives the raw markdown
 - Bold/italic/strike wrap the selection, or drop `****` with the cursor in the middle
@@ -19,8 +19,8 @@ plain markdown in a normal `<textarea>`, so it drops into any form.
 Via jsDelivr:
 
 ```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/xinix00/markdown@1.4.0/markdown.min.css">
-<script src="https://cdn.jsdelivr.net/gh/xinix00/markdown@1.4.0/markdown.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/xinix00/markdown@1.5.0/markdown.min.css">
+<script src="https://cdn.jsdelivr.net/gh/xinix00/markdown@1.5.0/markdown.min.js"></script>
 ```
 
 Or copy `markdown.js` and `markdown.css` into your project.
