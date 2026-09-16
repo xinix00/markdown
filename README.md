@@ -1,7 +1,7 @@
 # markdown
 
 A tiny block-based markdown editor. Every line is its own block; the prefix
-you type decides how it looks (`# `, `- `, `1. `, `> `, ` ``` `). The result is
+you type decides how it looks (`# `, `- ` or `* `, `1. `, `> `, ` ``` `). The result is
 plain markdown in a normal `<textarea>`, so it drops into any form.
 
 - Two plain files (JS + CSS), no build step, no dependencies
@@ -17,8 +17,8 @@ plain markdown in a normal `<textarea>`, so it drops into any form.
 Via jsDelivr:
 
 ```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/xinix00/markdown@1.1.0/markdown.min.css">
-<script src="https://cdn.jsdelivr.net/gh/xinix00/markdown@1.1.0/markdown.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/xinix00/markdown@1.1.1/markdown.min.css">
+<script src="https://cdn.jsdelivr.net/gh/xinix00/markdown@1.1.1/markdown.min.js"></script>
 ```
 
 Or copy `markdown.js` and `markdown.css` into your project.

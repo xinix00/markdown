@@ -1,4 +1,4 @@
-/*! @xinix00/markdown v1.1.0 | MIT | https://github.com/xinix00/markdown */
+/*! @xinix00/markdown v1.1.1 | MIT | https://github.com/xinix00/markdown */
 (function (global) {
     'use strict';
 
@@ -6,10 +6,10 @@
     // Block parsing — every line is a block, the prefix decides the style
     // -----------------------------------------------------------------------
 
-    const RE = /^(#{1,3} |- |\d+\. |> |```)/;
+    const RE = /^(#{1,3} |[-*] |\d+\. |> |```)/;
     const TYPES = {
         '# ': ['h1', '#'], '## ': ['h2', '##'], '### ': ['h3', '###'],
-        '- ': ['bullet', '•'], '> ': ['quote', null], '```': ['code', '</>'],
+        '- ': ['bullet', '•'], '* ': ['bullet', '•'], '> ': ['quote', null], '```': ['code', '</>'],
     };
 
     function parse(text) {
@@ -298,13 +298,14 @@
             split(i, ta) {
                 const before = ta.value.slice(0, ta.selectionStart), after = ta.value.slice(ta.selectionStart);
                 const { prefix } = parse(this.blocks[i]);
-                const isList = prefix === '- ' || /^\d+\. /.test(prefix);
+                const isBullet = prefix === '- ' || prefix === '* ';
+                const isList = isBullet || /^\d+\. /.test(prefix);
 
                 this.blocks[i] = prefix + before;
 
                 if (isList && !before.trim()) { this.blocks[i] = ''; this.blocks.splice(i + 1, 0, after); }
                 else if (/^\d+\. /.test(prefix)) this.blocks.splice(i + 1, 0, (parseInt(prefix, 10) + 1) + '. ' + after);
-                else if (prefix === '- ') this.blocks.splice(i + 1, 0, '- ' + after);
+                else if (isBullet) this.blocks.splice(i + 1, 0, prefix + after);
                 else this.blocks.splice(i + 1, 0, after);
 
                 this.active = i + 1; this.render(); this.sync();
@@ -445,5 +446,5 @@
     });
 
     global.markdownEditor = component;
-    global.MarkdownEditor = { component, mount, parse, labels: LABELS, version: '1.1.0' };
+    global.MarkdownEditor = { component, mount, parse, labels: LABELS, version: '1.1.1' };
 })(window);
