@@ -1,4 +1,4 @@
-/*! @xinix00/markdown v1.6.0 | MIT | https://github.com/xinix00/markdown */
+/*! @xinix00/markdown v1.6.1 | MIT | https://github.com/xinix00/markdown */
 (function (global) {
     'use strict';
 
@@ -401,7 +401,6 @@
             buildImage(text) {
                 const img = document.createElement('img');
                 img.className = 'md-img';
-                img.loading = 'lazy';
                 img.addEventListener('error', () => { img.hidden = true; });
                 img.addEventListener('load', () => { img.hidden = false; });
                 this.updateImage(img, text);
@@ -763,5 +762,5 @@
     });
 
     global.markdownEditor = component;
-    global.MarkdownEditor = { component, mount, parse, parseImage, formatTable, labels: LABELS, version: '1.6.0' };
+    global.MarkdownEditor = { component, mount, parse, parseImage, formatTable, labels: LABELS, version: '1.6.1' };
 })(window);

@@ -1,4 +1,4 @@
-/*! @xinix00/markdown v1.6.0 | MIT | https://github.com/xinix00/markdown */
+/*! @xinix00/markdown v1.6.1 | MIT | https://github.com/xinix00/markdown */
 
 /* Theme via custom properties — override any --md-* on .md-editor or an ancestor */
 .md-editor {
@@ -89,7 +89,8 @@
 
 /* Images: the raw ![alt](src) line stays editable, the real image shows underneath */
 .md-image { flex-wrap: wrap; }
-.md-img { flex-basis: 100%; max-width: 100%; height: auto; border-radius: 0.25rem; margin: 0.25rem 0 0.375rem; }
+.md-image::after { content: ''; flex-basis: 100%; height: 0; order: 1; } /* line break before the image */
+.md-img { order: 2; max-width: 100%; height: auto; border-radius: 0.25rem; margin: 0.25rem 0 0.375rem; }
 
 /* Block selection (drag across blocks or Shift+arrows; then copy/cut/paste/delete/type) */
 .md-selected { background: color-mix(in srgb, var(--_accent) 15%, transparent); border-radius: 0.25rem; }
