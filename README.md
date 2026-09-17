@@ -1,19 +1,14 @@
 # markdown
 
-A tiny block-based markdown editor. Every line is its own block; the prefix
-you type decides how it looks (`# `, `- ` or `* `, `1. `, `>`, ` ``` `, `|`). The result is
-plain markdown in a normal `<textarea>`, so it drops into any form.
+A tiny block-based markdown editor. Every line is its own block, and the
+prefix you type decides how it looks. The result is plain markdown in a normal
+`<textarea>`, so it drops into any form.
 
 - Two plain files (JS + CSS), no build step, no dependencies
 - Works standalone or as an [Alpine.js](https://alpinejs.dev) component
-- Enter splits a block, Backspace at the start merges, lists continue automatically
-- Cmd/Ctrl+B, I and Shift+S wrap the selection (or toggle the markers off again)
-- Tables: a line starting with `|` is a table row, shown as a grid of cells that behave like every other block: multi-line (Shift+Enter), auto-growing. Tab moves to the next cell (natively; from the last cell with nothing below it creates a line under the table), arrows move between cells and rows, Enter adds a row (and the `---` separator after the header), Enter on an empty last row ends the table (a table always keeps its header and one data row; select the rows and press Backspace to remove it). Type `|` in a cell to add a column right there; Backspace in an empty cell removes the column when it is empty everywhere. The raw markdown stays aligned automatically; line breaks inside a cell are stored as `<br>`.
-- Select whole blocks by dragging across them or with Shift+↑/↓ (Cmd/Ctrl+A twice selects everything)
-- A block selection supports copy, cut, paste, Backspace/Delete and typing over it; copying gives the raw markdown
-- Bold/italic/strike wrap the selection, or drop `****` with the cursor in the middle
+- Every block is a real `<textarea>`: focus is browser focus, nothing is
+  computed or overlaid, no `contenteditable`
 - Themeable with CSS custom properties, all labels overridable
-- A line that is exactly `![alt](src)` shows the real image underneath, `max-width: 100%`. Sources can be translated through an `images` map or an `imageUrl` function (call `refreshImages()` after changing the map)
 
 ## Install
 
@@ -28,7 +23,7 @@ Or copy `markdown.js` and `markdown.css` into your project.
 
 ## Usage
 
-With Alpine.js — wrap a `<textarea>` in an element with `x-data`:
+With Alpine.js, wrap a `<textarea>` in an element with `x-data`:
 
 ```html
 <div x-data="markdownEditor()">
@@ -40,11 +35,90 @@ Some **bold** text.</textarea>
 Without Alpine:
 
 ```js
-MarkdownEditor.mount(document.querySelector('#editor'), { placeholder: 'Write…' });
+const editor = MarkdownEditor.mount(document.querySelector('#editor'), { placeholder: 'Write…' });
+editor.value(); // current markdown
 ```
 
 The original textarea is hidden and kept in sync, so a regular form submit
 (or `FormData`) just works. It also fires an `input` event on every change.
+
+## Blocks
+
+| You type | Block |
+|---|---|
+| `# `, `## `, `### ` | Heading 1–3 |
+| `- ` or `* ` | Bullet list (Enter continues the list, Enter on an empty item ends it) |
+| `1. ` | Numbered list (Enter numbers the next item) |
+| `>` | Quote, shown as a comment-style callout (no space needed) |
+| ` ``` ` | Code line, monospace |
+| `\|` | Table row, see [Tables](#tables) |
+| `![alt](src)` | Image, see [Images](#images) |
+
+Enter splits a block, Backspace at the start of a block merges it into the
+previous one, Shift+Enter inserts a line break inside a block. Pasting
+multi-line text creates one block per line. The toolbar sets or changes a
+block's prefix.
+
+## Keyboard
+
+| Keys | Action |
+|---|---|
+| Cmd/Ctrl+B, Cmd/Ctrl+I, Cmd/Ctrl+Shift+S (or X) | Bold, italic, strikethrough: wraps the selection, or inserts `****` with the caret in between. Press again to remove the markers |
+| ↑ / ↓ at the first / last line | Move to the previous / next block |
+| Shift+↑ / Shift+↓ | Select whole blocks (starts at the block edge) |
+| Cmd/Ctrl+A | Selects the block's text; a second press selects all blocks |
+| Backspace / Delete on a block selection | Delete the blocks |
+| Cmd/Ctrl+C / X / V on a block selection | Copy or cut the **raw markdown** of the blocks, paste over them (one block per line) |
+| Typing on a block selection | Replaces the blocks |
+| Esc | Leave the block selection |
+
+You can also select blocks by dragging across them with the mouse, in either
+direction. Copying through the Edit menu or context menu gives the raw markdown
+as well.
+
+## Tables
+
+A line starting with `|` is a table row. Consecutive rows form a table that is
+shown as a grid of cells, and each cell is a textarea like every other block:
+multi-line with Shift+Enter, auto-growing. Columns take their natural width,
+long text wraps, the table never scrolls horizontally.
+
+| Keys | Action |
+|---|---|
+| Tab / Shift+Tab | Next / previous cell (native). Tab from the very last cell with nothing below the table creates a line under it |
+| ← / → at the cell edge | Previous / next cell |
+| ↑ / ↓ at the first / last line of a cell | Same column in the previous / next row (the separator line is skipped) |
+| Enter | New row below. On the header row the `\| --- \|` separator is inserted first |
+| Enter on an empty last row | Ends the table (the row becomes an empty line) |
+| `\|` inside a cell | Adds a column right there; the cell is split at the caret |
+| Backspace in an empty cell | Removes the column when it is empty in every row, otherwise moves to the previous cell |
+| Backspace on an empty row | Removes the row |
+
+A table always keeps its header and one data row, so none of the above can
+leave you with a broken table. To remove a table, select its rows and press
+Backspace.
+
+The raw markdown is kept aligned and rectangular automatically. A `|` typed in
+a cell that should stay literal is stored as `\|`, a line break inside a cell as
+`<br>` (the GFM convention). The toolbar's table button inserts a two-column
+starter table.
+
+## Images
+
+A line that is exactly `![alt](src)` (optionally with a `"title"`) is an image
+block: the line stays an editable textarea and the real image is shown
+underneath at `max-width: 100%`. Editing the line updates the image in place.
+While an image does not load (half-typed URL, 404) it stays hidden.
+
+Sources can be translated, for example from a file id to a URL:
+
+```js
+markdownEditor({
+  images: { 'logo': '/files/3f9a…' },   // src → URL map
+  imageUrl: (src) => src,               // or a function; wins over `images`
+})
+editor.refreshImages();                 // re-resolve after changing the map
+```
 
 ## Options
 
@@ -52,8 +126,8 @@ The original textarea is hidden and kept in sync, so a regular form submit
 markdownEditor({
   toolbar: true,               // set false to hide the toolbar
   placeholder: 'Type here…',   // shown in the first empty block
-  images: { 'logo': '/files/3f9…' },   // optional: translate image sources (id → URL)
-  imageUrl: (src) => src,             // or a function; wins over `images`
+  images: {},                  // see Images
+  imageUrl: undefined,         // see Images
   labels: {                    // toolbar titles
     bold: 'Vet', italic: 'Cursief', strike: 'Doorhalen',
     h1: 'Kop 1', h2: 'Kop 2', h3: 'Kop 3',
@@ -62,6 +136,10 @@ markdownEditor({
   },
 })
 ```
+
+The component exposes `value()`, `focus(i, pos)`, `select(from, to)`,
+`selectAll()`, `refreshImages()` and the `blocks` array. `MarkdownEditor` also
+exports `parse(line)`, `parseImage(line)` and `formatTable(rows)`.
 
 ## Theming
 
@@ -74,8 +152,8 @@ Override any of these on `.md-editor` or an ancestor:
   --md-muted: #6b7280;    /* toolbar icons, quotes */
   --md-faint: #9ca3af;    /* decorators, placeholder */
   --md-border: #d1d5db;
-  --md-divider: rgba(0,0,0,.08);
-  --md-soft: rgba(0,0,0,.04);   /* toolbar + code background */
+  --md-divider: rgba(0,0,0,.08);   /* toolbar line, table cell borders */
+  --md-soft: rgba(0,0,0,.04);      /* toolbar, code, quote and table header background */
   --md-hover: rgba(0,0,0,.08);
   --md-radius: .5rem;
   --md-font-size: .875rem;
