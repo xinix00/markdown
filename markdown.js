@@ -1,4 +1,4 @@
-/*! @xinix00/markdown v1.5.2 | MIT | https://github.com/xinix00/markdown */
+/*! @xinix00/markdown v1.6.0 | MIT | https://github.com/xinix00/markdown */
 (function (global) {
     'use strict';
 
@@ -20,7 +20,15 @@
         if (t) return { prefix, content, type: t[0], dec: t[1] };
         if (prefix) return { prefix, content, type: 'numbered', dec: prefix.trim() };
         if (text[0] === '|') return { prefix: '', content: text, type: 'table', dec: null };
+        if (IMAGE_RE.test(text.trim())) return { prefix: '', content: text, type: 'image', dec: null };
         return { prefix: '', content: text, type: 'p', dec: null };
+    }
+
+    // A block that is exactly one image: ![alt](src "optional title")
+    const IMAGE_RE = /^!\[([^\]]*)\]\(\s*(\S+?)(?:\s+"[^"]*")?\s*\)$/;
+    function parseImage(text) {
+        const m = text.trim().match(IMAGE_RE);
+        return m ? { alt: m[1], src: m[2] } : null;
     }
 
     // -----------------------------------------------------------------------
@@ -154,6 +162,8 @@
         const opts = Object.assign({ toolbar: true }, options || {});
         const labels = Object.assign({}, LABELS, opts.labels || {});
         if (opts.placeholder !== undefined) labels.placeholder = opts.placeholder;
+        // Image sources can be translated (e.g. an id → a real URL) via a map or a function
+        const imageUrl = (src) => (typeof opts.imageUrl === 'function' ? opts.imageUrl(src) : (opts.images && opts.images[src]) || src);
 
         return {
             blocks: [], active: 0,
@@ -331,8 +341,9 @@
                     fit(ta);
                     this.blocks[i] = prefix + ta.value;
                     this.sync();
-                    // Auto-detect a freshly typed prefix ("- ", ">") or a type change ("|" → table row)
+                    // Auto-detect a freshly typed prefix ("- ", ">") or a type change ("|" → table row, "![..](..)" → image)
                     const parsed = parse(prefix + ta.value);
+                    if (parsed.type === 'image' && type === 'image') { this.updateImage(ta.parentNode.querySelector('.md-img'), ta.value); return; }
                     if ((parsed.prefix !== prefix && parsed.prefix) || parsed.type !== type) {
                         if (parsed.type === 'table') this.prettyTable(i);
                         this.render(false);
@@ -382,7 +393,32 @@
                 });
 
                 row.appendChild(ta);
+                if (type === 'image') row.appendChild(this.buildImage(content));
                 return row;
+            },
+
+            // The real image, shown under the raw ![alt](src) line; hidden while it does not load
+            buildImage(text) {
+                const img = document.createElement('img');
+                img.className = 'md-img';
+                img.loading = 'lazy';
+                img.addEventListener('error', () => { img.hidden = true; });
+                img.addEventListener('load', () => { img.hidden = false; });
+                this.updateImage(img, text);
+                return img;
+            },
+
+            updateImage(img, text) {
+                const im = parseImage(text);
+                if (!im) { img.hidden = true; return; }
+                const url = imageUrl(im.src);
+                if (img.getAttribute('src') !== url) { img.hidden = true; img.src = url; }
+                img.alt = im.alt;
+            },
+
+            // Re-resolve every image (call after changing the images map)
+            refreshImages() {
+                this.rows().forEach((row, i) => { const img = row.querySelector('.md-img'); if (img) this.updateImage(img, this.blocks[i]); });
             },
 
             split(i, ta) {
@@ -727,5 +763,5 @@
     });
 
     global.markdownEditor = component;
-    global.MarkdownEditor = { component, mount, parse, formatTable, labels: LABELS, version: '1.5.2' };
+    global.MarkdownEditor = { component, mount, parse, parseImage, formatTable, labels: LABELS, version: '1.6.0' };
 })(window);

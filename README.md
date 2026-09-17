@@ -13,14 +13,15 @@ plain markdown in a normal `<textarea>`, so it drops into any form.
 - A block selection supports copy, cut, paste, Backspace/Delete and typing over it; copying gives the raw markdown
 - Bold/italic/strike wrap the selection, or drop `****` with the cursor in the middle
 - Themeable with CSS custom properties, all labels overridable
+- A line that is exactly `![alt](src)` shows the real image underneath, `max-width: 100%`. Sources can be translated through an `images` map or an `imageUrl` function (call `refreshImages()` after changing the map)
 
 ## Install
 
 Via jsDelivr:
 
 ```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/xinix00/markdown@1.5.2/markdown.min.css">
-<script src="https://cdn.jsdelivr.net/gh/xinix00/markdown@1.5.2/markdown.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/xinix00/markdown@1.6.0/markdown.min.css">
+<script src="https://cdn.jsdelivr.net/gh/xinix00/markdown@1.6.0/markdown.min.js"></script>
 ```
 
 Or copy `markdown.js` and `markdown.css` into your project.
@@ -51,6 +52,8 @@ The original textarea is hidden and kept in sync, so a regular form submit
 markdownEditor({
   toolbar: true,               // set false to hide the toolbar
   placeholder: 'Type here…',   // shown in the first empty block
+  images: { 'logo': '/files/3f9…' },   // optional: translate image sources (id → URL)
+  imageUrl: (src) => src,             // or a function; wins over `images`
   labels: {                    // toolbar titles
     bold: 'Vet', italic: 'Cursief', strike: 'Doorhalen',
     h1: 'Kop 1', h2: 'Kop 2', h3: 'Kop 3',
