@@ -15,8 +15,8 @@ prefix you type decides how it looks. The result is plain markdown in a normal
 Via jsDelivr:
 
 ```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/xinix00/markdown@1.6.1/markdown.min.css">
-<script src="https://cdn.jsdelivr.net/gh/xinix00/markdown@1.6.1/markdown.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/xinix00/markdown@1.7.0/markdown.min.css">
+<script src="https://cdn.jsdelivr.net/gh/xinix00/markdown@1.7.0/markdown.min.js"></script>
 ```
 
 Or copy `markdown.js` and `markdown.css` into your project.
@@ -47,17 +47,20 @@ The original textarea is hidden and kept in sync, so a regular form submit
 | You type | Block |
 |---|---|
 | `# `, `## `, `### ` | Heading 1–3 |
-| `- ` or `* ` | Bullet list (Enter continues the list, Enter on an empty item ends it) |
+| `- ` or `* ` | Bullet list (Enter continues the list, Enter on an empty item ends it, Shift+Enter breaks the line inside the item) |
 | `1. ` | Numbered list (Enter numbers the next item) |
-| `>` | Quote, shown as a comment-style callout (no space needed) |
+| `>` | Quote, shown as a comment-style callout (no space needed; Enter continues the quote, Enter on an empty line ends it) |
 | ` ``` ` | Code line, monospace |
 | `\|` | Table row, see [Tables](#tables) |
 | `![alt](src)` | Image, see [Images](#images) |
 
-Enter splits a block, Backspace at the start of a block merges it into the
-previous one, Shift+Enter inserts a line break inside a block. Pasting
-multi-line text creates one block per line. The toolbar sets or changes a
-block's prefix.
+Enter starts a new line (a new block). In a list or a quote the marker is
+carried to the next line, and Enter on an empty item ends the list or quote.
+Shift+Enter inserts a line break *inside* a list item (stored as an indented
+continuation line, `- a\n  b`) or a table cell; anywhere else it would produce
+the same markdown as Enter, so it simply is Enter. Backspace at the start of a
+block merges it into the previous one. Pasting multi-line text creates one
+block per line. The toolbar sets or changes a block's prefix.
 
 ## Keyboard
 
@@ -94,9 +97,10 @@ long text wraps, the table never scrolls horizontally.
 | Backspace in an empty cell | Removes the column when it is empty in every row, otherwise moves to the previous cell |
 | Backspace on an empty row | Removes the row |
 
-A table always keeps its header and one data row, so none of the above can
-leave you with a broken table. To remove a table, select its rows and press
-Backspace.
+A table always keeps its header, its separator and one data row, so none of
+the above can leave you with a broken table; deleting a block selection that
+cuts into a table repairs it the same way. To remove a table, select all its
+rows and press Backspace.
 
 The raw markdown is kept aligned and rectangular automatically. A `|` typed in
 a cell that should stay literal is stored as `\|`, a line break inside a cell as
