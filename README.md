@@ -15,8 +15,8 @@ prefix you type decides how it looks. The result is plain markdown in a normal
 Via jsDelivr:
 
 ```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/xinix00/markdown@1.7.0/markdown.min.css">
-<script src="https://cdn.jsdelivr.net/gh/xinix00/markdown@1.7.0/markdown.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/xinix00/markdown@1.8.0/markdown.min.css">
+<script src="https://cdn.jsdelivr.net/gh/xinix00/markdown@1.8.0/markdown.min.js"></script>
 ```
 
 Or copy `markdown.js` and `markdown.css` into your project.
@@ -50,7 +50,7 @@ The original textarea is hidden and kept in sync, so a regular form submit
 | `- ` or `* ` | Bullet list (Enter continues the list, Enter on an empty item ends it, Shift+Enter breaks the line inside the item) |
 | `1. ` | Numbered list (Enter numbers the next item) |
 | `>` | Quote, shown as a comment-style callout (no space needed; Enter continues the quote, Enter on an empty line ends it) |
-| ` ``` ` | Code line, monospace |
+| ` ``` ` | Code fence. Everything up to the closing ` ``` ` is code: no prefixes, Enter is a plain new line, Tab indents. The toolbar button wraps the current line in fences, or unwraps the fence you are in |
 | `\|` | Table row, see [Tables](#tables) |
 | `![alt](src)` | Image, see [Images](#images) |
 
@@ -69,7 +69,7 @@ block per line. The toolbar sets or changes a block's prefix.
 | Cmd/Ctrl+B, Cmd/Ctrl+I, Cmd/Ctrl+Shift+S (or X) | Bold, italic, strikethrough: wraps the selection, or inserts `****` with the caret in between. Press again to remove the markers |
 | ↑ / ↓ at the first / last line | Move to the previous / next block |
 | Shift+↑ / Shift+↓ | Select whole blocks (starts at the block edge) |
-| Cmd/Ctrl+A | Selects the block's text; a second press selects all blocks |
+| Cmd/Ctrl+A | Selects the block's text; a second press (or a press in an empty block) selects all blocks. Works in table cells too |
 | Backspace / Delete on a block selection | Delete the blocks |
 | Cmd/Ctrl+C / X / V on a block selection | Copy or cut the **raw markdown** of the blocks, paste over them (one block per line) |
 | Typing on a block selection | Replaces the blocks |

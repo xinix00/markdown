@@ -1,4 +1,4 @@
-/*! @xinix00/markdown v1.7.0 | MIT | https://github.com/xinix00/markdown */
+/*! @xinix00/markdown v1.8.0 | MIT | https://github.com/xinix00/markdown */
 
 /* Theme via custom properties — override any --md-* on .md-editor or an ancestor */
 .md-editor {
@@ -59,7 +59,7 @@
 .md-h3 > .md-decorator       { font-size: 1.1rem;  font-weight: 600; }
 .md-bullet > .md-decorator   { color: var(--_accent); font-size: var(--_font-size); }
 .md-numbered > .md-decorator { color: var(--_accent); font-size: var(--_font-size); }
-.md-code > .md-decorator     { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.7rem; }
+.md-fence > .md-decorator    { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.7rem; }
 
 /* Textarea per block */
 .md-input {
@@ -76,7 +76,13 @@
 .md-h3 .md-input    { font-size: 1.1rem;  font-weight: 600; }
 .md-quote           { border-left: 3px solid var(--_accent); background: var(--_soft); border-radius: 0 0.25rem 0.25rem 0; padding: 0.125rem 0.75rem; margin: 0.125rem 0; }
 .md-quote .md-input { font-style: italic; color: var(--_muted); }
-.md-code .md-input  { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem; background: var(--_soft); border-radius: 0.25rem; padding: 0.25rem 0.5rem; }
+/* Fenced code: the ``` lines and every line between them form one box */
+.md-fence, .md-code { background: var(--_soft); padding-left: 0.5rem; padding-right: 0.5rem; }
+.md-fence .md-input, .md-code .md-input { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem; }
+.md-fence .md-input { color: var(--_faint); }
+.md-fence { border-radius: 0.25rem; }
+.md-fence + .md-code, .md-code + .md-code, .md-code + .md-fence { border-top-left-radius: 0; border-top-right-radius: 0; }
+.md-fence:has(+ .md-code) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 /* Tables: a row is a grid of cell inputs; consecutive rows share one scrolling group
    and line up their columns via subgrid. --md-cols is set on the group by the editor. */
 .md-table-group { display: grid; grid-template-columns: repeat(var(--md-cols, 1), minmax(0, auto)); margin: 0.125rem 0; } /* never scrolls: long cells wrap and grow */

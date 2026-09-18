@@ -1,4 +1,4 @@
-/*! @xinix00/markdown v1.7.0 | MIT | https://github.com/xinix00/markdown */
+/*! @xinix00/markdown v1.8.0 | MIT | https://github.com/xinix00/markdown */
 (function (global) {
     'use strict';
 
@@ -9,7 +9,7 @@
     const RE = /^(#{1,3} |[-*] |\d+\. |> ?|```)/;
     const TYPES = {
         '# ': ['h1', '#'], '## ': ['h2', '##'], '### ': ['h3', '###'],
-        '- ': ['bullet', '•'], '* ': ['bullet', '•'], '> ': ['quote', null], '>': ['quote', null], '```': ['code', '</>'],
+        '- ': ['bullet', '•'], '* ': ['bullet', '•'], '> ': ['quote', null], '>': ['quote', null], '```': ['fence', '</>'],
     };
 
     function parse(text) {
@@ -24,6 +24,19 @@
         return { prefix: '', content: text, type: 'p', dec: null };
     }
 
+    const isFenceLine = (block) => block.startsWith('```');
+
+    // Which blocks sit inside a ``` fence (strictly between an opening and a closing line)
+    function fenceStates(blocks) {
+        const states = [];
+        let inside = false;
+        for (const b of blocks) {
+            if (isFenceLine(b)) { states.push(false); inside = !inside; }
+            else states.push(inside);
+        }
+        return states;
+    }
+
     const isListPrefix = (prefix) => prefix === '- ' || prefix === '* ' || /^\d+\. $/.test(prefix);
     const isQuotePrefix = (prefix) => prefix === '> ' || prefix === '>';
 
@@ -32,8 +45,10 @@
     // one block with a line break. Everything else is one line = one block.
     function textToBlocks(text) {
         const blocks = [];
-        let indent = 0; // indent that continues the previous list block, 0 = none
+        let indent = 0, inFence = false; // indent that continues the previous list block, 0 = none
         for (const line of text.split('\n')) {
+            if (isFenceLine(line)) inFence = !inFence;
+            if (inFence || isFenceLine(line)) { blocks.push(line); indent = 0; continue; } // code lines never merge
             if (indent && line.length > indent && line.slice(0, indent).trim() === '' && line.trim() !== '') {
                 blocks[blocks.length - 1] += '\n' + line.slice(indent);
                 continue;
@@ -149,7 +164,7 @@
         ['bold', 'wrap', '**'], ['italic', 'wrap', '*'], ['strike', 'wrap', '~~'], null,
         ['h1', 'setPrefix', '# '], ['h2', 'setPrefix', '## '], ['h3', 'setPrefix', '### '], null,
         ['bullet', 'setPrefix', '- '], ['numbered', 'setPrefix', '1. '], ['quote', 'setPrefix', '> '], null,
-        ['code', 'setPrefix', '```'], ['table', 'insertTable', null], ['paragraph', 'setPrefix', ''],
+        ['code', 'toggleFence', null], ['table', 'insertTable', null], ['paragraph', 'setPrefix', ''],
     ];
 
     const LABELS = {
@@ -313,9 +328,10 @@
                 const c = this.container;
                 c.innerHTML = '';
                 let group = null; // consecutive table rows share one horizontally scrolling wrapper
+                const fenced = fenceStates(this.blocks);
                 this.blocks.forEach((text, i) => {
-                    const row = this.buildBlock(text, i);
-                    if (parse(text).type === 'table') {
+                    const row = this.buildBlock(text, i, fenced[i]);
+                    if (!fenced[i] && parse(text).type === 'table') {
                         if (!group) {
                             group = document.createElement('div');
                             group.className = 'md-table-group';
@@ -329,8 +345,9 @@
                 if (autoFocus) this.focus(this.active);
             },
 
-            buildBlock(text, i) {
-                const { prefix, content, type, dec } = parse(text);
+            buildBlock(text, i, inFence) {
+                // Inside a ``` fence every line is code, whatever it starts with
+                const { prefix, content, type, dec } = inFence ? { prefix: '', content: text, type: 'code', dec: null } : parse(text);
                 const isHeading = type[0] === 'h';
 
                 const row = document.createElement('div');
@@ -367,6 +384,10 @@
                     fit(ta);
                     this.blocks[i] = prefix + ta.value;
                     this.sync();
+                    if (inFence) { // only a closing ``` changes anything here
+                        if (isFenceLine(ta.value)) { this.render(false); this.focus(i, 'end'); }
+                        return;
+                    }
                     // Auto-detect a freshly typed prefix ("- ", ">") or a type change ("|" → table row, "![..](..)" → image)
                     const parsed = parse(prefix + ta.value);
                     if (parsed.type === 'image' && type === 'image') { this.updateImage(ta.parentNode.querySelector('.md-img'), ta.value); return; }
@@ -387,7 +408,13 @@
 
                     const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
 
-                    if (mod && !e.altKey && k === 'b') { e.preventDefault(); this.wrap('**'); }
+                    if (e.key === 'Tab' && inFence && !e.shiftKey) { // indent inside code
+                        e.preventDefault();
+                        const p = ta.selectionStart;
+                        ta.value = ta.value.slice(0, p) + '  ' + ta.value.slice(ta.selectionEnd);
+                        ta.setSelectionRange(p + 2, p + 2); this.blocks[i] = ta.value; this.sync();
+                    }
+                    else if (mod && !e.altKey && k === 'b') { e.preventDefault(); this.wrap('**'); }
                     else if (mod && !e.altKey && k === 'i') { e.preventDefault(); this.wrap('*'); }
                     else if (mod && e.shiftKey && (k === 's' || k === 'x')) { e.preventDefault(); this.wrap('~~'); }
                     else if (e.key === 'Enter') {
@@ -450,6 +477,11 @@
 
             split(i, ta) {
                 const before = ta.value.slice(0, ta.selectionStart), after = ta.value.slice(ta.selectionStart);
+                if (fenceStates(this.blocks)[i]) { // code line: plain new line, no prefix logic
+                    this.blocks[i] = before; this.blocks.splice(i + 1, 0, after);
+                    this.active = i + 1; this.render(); this.sync();
+                    return;
+                }
                 const { prefix } = parse(this.blocks[i]);
                 const continues = isListPrefix(prefix) || isQuotePrefix(prefix); // lists and quotes carry their marker to the next line
 
@@ -503,6 +535,27 @@
                 this.blocks[this.active] = p + parse(this.blocks[this.active]).content;
                 this.render(false); this.sync();
                 this.focus(this.active, 'end');
+            },
+
+            // Toolbar "code": wrap the current block in ``` fences, or unwrap the fence it is in
+            toggleFence() {
+                const i = this.active, states = fenceStates(this.blocks);
+                if (states[i] || isFenceLine(this.blocks[i])) {
+                    let a = i, b = i;
+                    if (states[i]) { while (!isFenceLine(this.blocks[a])) a--; b = a + 1; while (b < this.blocks.length && !isFenceLine(this.blocks[b])) b++; }
+                    else if (states[i - 1]) { a = i - 1; while (!isFenceLine(this.blocks[a])) a--; } // i is the closing line
+                    else { b = i + 1; while (b < this.blocks.length && !isFenceLine(this.blocks[b])) b++; } // i is the opening line
+                    if (b < this.blocks.length) this.blocks.splice(b, 1);
+                    this.blocks.splice(a, 1);
+                    if (!this.blocks.length) this.blocks = [''];
+                    this.render(false); this.sync();
+                    this.focus(Math.min(Math.max(a, 0), this.blocks.length - 1), 'end');
+                    return;
+                }
+                this.blocks.splice(i, 0, '```');
+                this.blocks.splice(i + 2, 0, '```');
+                this.render(false); this.sync();
+                this.focus(i + 1, 'end');
             },
 
             // --- Tables ------------------------------------------------------
@@ -567,6 +620,7 @@
                         if (mod && !e.altKey && k === 'b') { e.preventDefault(); this.wrap('**'); }
                         else if (mod && !e.altKey && k === 'i') { e.preventDefault(); this.wrap('*'); }
                         else if (mod && e.shiftKey && (k === 's' || k === 'x')) { e.preventDefault(); this.wrap('~~'); }
+                        else if (mod && k === 'a' && input.selectionStart === 0 && input.selectionEnd === input.value.length) { e.preventDefault(); this.selectAll(); }
                         else if (e.key === '|' && !mod) { e.preventDefault(); this.insertColumn(i, c, input); }
                         else if (e.key === 'Tab' && !e.shiftKey && c === cols - 1 && i === this.blocks.length - 1) {
                             // Tab out of the very last cell with nothing below: create a line under the table
@@ -812,5 +866,5 @@
     });
 
     global.markdownEditor = component;
-    global.MarkdownEditor = { component, mount, parse, parseImage, formatTable, textToBlocks, blocksToText, labels: LABELS, version: '1.7.0' };
+    global.MarkdownEditor = { component, mount, parse, parseImage, formatTable, textToBlocks, blocksToText, labels: LABELS, version: '1.8.0' };
 })(window);
