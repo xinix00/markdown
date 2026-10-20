@@ -1,4 +1,4 @@
-/*! @xinix00/markdown v1.8.0 | MIT | https://github.com/xinix00/markdown */
+/*! @xinix00/markdown v1.8.1 | MIT | https://github.com/xinix00/markdown */
 (function (global) {
     'use strict';
 
@@ -192,8 +192,10 @@
     const AUTO_GROW = !(global.CSS && CSS.supports && CSS.supports('field-sizing', 'content'));
     function fit(ta) {
         if (!AUTO_GROW || ta.tagName !== 'TEXTAREA') return;
+        const box = ta.closest('.md-blocks'), top = box && box.scrollTop; // 'auto' briefly shrinks the content, which clamps the scroll
         ta.style.height = 'auto';
         ta.style.height = ta.scrollHeight + 'px';
+        if (box) box.scrollTop = top;
     }
 
     // -----------------------------------------------------------------------
@@ -326,6 +328,14 @@
 
             render(autoFocus = true) {
                 const c = this.container;
+                const top = c.scrollTop;
+                // Keep the <img> elements: a fresh one stays hidden until it loads, so everything
+                // under it would first jump up and then get pushed down again (see buildImage)
+                this.imgPool = new Map();
+                c.querySelectorAll('.md-img').forEach((img) => {
+                    const src = img.getAttribute('src');
+                    this.imgPool.set(src, [...(this.imgPool.get(src) || []), img]);
+                });
                 c.innerHTML = '';
                 let group = null; // consecutive table rows share one horizontally scrolling wrapper
                 const fenced = fenceStates(this.blocks);
@@ -341,7 +351,9 @@
                         group.appendChild(row);
                     } else { group = null; c.appendChild(row); }
                 });
+                this.imgPool = null;
                 if (AUTO_GROW) c.querySelectorAll('textarea').forEach(fit);
+                c.scrollTop = top; // emptying the container may have clamped it
                 if (autoFocus) this.focus(this.active);
             },
 
@@ -454,6 +466,9 @@
 
             // The real image, shown under the raw ![alt](src) line; hidden while it does not load
             buildImage(text) {
+                const im = parseImage(text);
+                const kept = im && this.imgPool?.get(imageUrl(im.src))?.shift(); // reused across render()
+                if (kept) { this.updateImage(kept, text); return kept; }
                 const img = document.createElement('img');
                 img.className = 'md-img';
                 img.addEventListener('error', () => { img.hidden = true; });
@@ -500,11 +515,8 @@
                 const cursor = prev.content.length;
                 this.blocks[i - 1] = prev.prefix + prev.content + curr.content;
                 this.blocks.splice(i, 1);
-                this.active = i - 1; this.render();
-                this.$nextTick(() => {
-                    const ta = this.ta(i - 1);
-                    if (ta) { ta.focus(); ta.selectionStart = ta.selectionEnd = cursor; }
-                });
+                this.render(false);
+                this.focus(i - 1, cursor);
                 this.sync();
             },
 
@@ -762,10 +774,10 @@
                     if (pos && typeof pos === 'object') pos = pos.at || 'end';
                 }
                 if (!el) return;
-                el.focus();
+                el.focus({ preventScroll: true }); // browsers differ (centre / not at all); scroll ourselves
                 const at = pos === 'end' ? el.value.length : pos === 'start' ? 0 : pos;
                 if (typeof at === 'number') el.setSelectionRange(at, at);
-                this.$nextTick(() => el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
+                el.scrollIntoView({ block: 'nearest' }); // instant: a smooth scroll is cut off by the next render
             },
 
             // --- Block selection -------------------------------------------
@@ -866,5 +878,5 @@
     });
 
     global.markdownEditor = component;
-    global.MarkdownEditor = { component, mount, parse, parseImage, formatTable, textToBlocks, blocksToText, labels: LABELS, version: '1.8.0' };
+    global.MarkdownEditor = { component, mount, parse, parseImage, formatTable, textToBlocks, blocksToText, labels: LABELS, version: '1.8.1' };
 })(window);
